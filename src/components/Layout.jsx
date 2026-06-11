@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import VehicleSelector from './VehicleSelector'
 
 const NAV_ITEMS = [
   { path: '/',            label: 'Dashboard',  icon: '◈' },
@@ -28,31 +29,22 @@ export default function Layout() {
       <aside className="sidebar">
         <div className="sidebar-header">
           <div className="sidebar-logo">
-            {!collapsed && (
-              <span className="logo-text">STALLION <span className="logo-accent">PIT</span></span>
-            )}
+            {!collapsed && <span className="logo-text">STALLION <span className="logo-accent">PIT</span></span>}
             {collapsed && <span className="logo-icon">S</span>}
           </div>
-          <button
-            className="sidebar-toggle"
-            onClick={() => setCollapsed(!collapsed)}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
+          <button className="sidebar-toggle" onClick={() => setCollapsed(!collapsed)}
+            title={collapsed ? 'Expand' : 'Collapse'}>
             {collapsed ? '›' : '‹'}
           </button>
         </div>
 
+        {!collapsed && <VehicleSelector />}
+
         <nav className="sidebar-nav">
           {NAV_ITEMS.map(item => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              end={item.path === '/'}
-              className={({ isActive }) =>
-                `nav-item ${isActive ? 'nav-item-active' : ''}`
-              }
-              title={collapsed ? item.label : ''}
-            >
+            <NavLink key={item.path} to={item.path} end={item.path === '/'}
+              className={({ isActive }) => `nav-item ${isActive ? 'nav-item-active' : ''}`}
+              title={collapsed ? item.label : ''}>
               <span className="nav-icon">{item.icon}</span>
               {!collapsed && <span className="nav-label">{item.label}</span>}
             </NavLink>
@@ -60,9 +52,7 @@ export default function Layout() {
         </nav>
 
         <div className="sidebar-footer">
-          {!collapsed && (
-            <div className="sidebar-user">{user?.email}</div>
-          )}
+          {!collapsed && <div className="sidebar-user">{user?.email}</div>}
           <button className="btn-signout" onClick={handleSignOut} title="Sign out">
             {collapsed ? '⏻' : 'Sign Out'}
           </button>

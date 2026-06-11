@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { VehicleProvider } from './contexts/VehicleContext'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
@@ -23,15 +24,14 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route
-        path="/login"
-        element={user ? <Navigate to="/" replace /> : <Login />}
-      />
+      <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
       <Route
         path="/"
         element={
           <PrivateRoute>
-            <Layout />
+            <VehicleProvider>
+              <Layout />
+            </VehicleProvider>
           </PrivateRoute>
         }
       >
