@@ -14,7 +14,7 @@ Stack: React 19 · Vite 8 · React Router 7 · Supabase (auth + Postgres) · Rec
 | 01 | Scaffold · Auth · Layout · Vehicle switching | ✅ Done |
 | 02 | Fleet — vehicle CRUD + spec sheet            | ✅ Done |
 | 06 | Fuel Log — fill-ups + corrected L/100km      | ✅ Done |
-| 03 | Service Log                                  | ⬜ Stub |
+| 03 | Service Log                                  | 🔶 Built — run `supabase/migrations/0001_service_logs.sql` |
 | 04 | Parts Log                                    | ⬜ Stub |
 | 05 | Maintenance Schedule                         | ⬜ Stub |
 | 07 | Dashboard                                    | ⬜ Stub |
