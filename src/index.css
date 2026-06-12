@@ -750,7 +750,7 @@ input::placeholder { color: var(--text-dim); }
 
 .fuel-stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 2px;
   background: var(--border);
   border: 1px solid var(--border);
@@ -759,7 +759,11 @@ input::placeholder { color: var(--text-dim); }
 .fuel-stats-grid .card {
   border: none;
   border-radius: 0;
+  padding: 12px 14px;
 }
+.fuel-stats-grid .card-label { margin-bottom: 5px; }
+.fuel-stats-grid .card-value { font-size: 19px; }
+.fuel-stats-grid .card-sub { margin-top: 3px; }
 
 .fuel-form { max-width: 700px; }
 .form-row-2 {
