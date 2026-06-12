@@ -71,11 +71,17 @@ export default function Dashboard() {
   for (const s of data.svc) odoBy[s.vehicle_id] = Math.max(odoBy[s.vehicle_id] || 0, Number(s.odometer_km || 0))
 
   const today = new Date(); today.setHours(0, 0, 0, 0)
-  const since90 = new Date(today); since90.setDate(today.getDate() - 90)
-  const in90 = (d) => d && new Date(d + 'T00:00:00') >= since90
+  const pad = (n) => String(n).padStart(2, '0')
+  const ymd = (dt) => `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`
+  const monthStart = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-01`
+  const since30 = new Date(today); since30.setDate(today.getDate() - 30)
+  const since30Str = ymd(since30)
+  const mtd = (d) => d && d >= monthStart
+  const in30 = (d) => d && d >= since30Str
 
   // ---- fleet rollup ----
-  const fleetFuel90 = data.fuel.filter(f => in90(f.logged_at)).reduce((s, f) => s + Number(f.total_cost_kes || 0), 0)
+  const fleetFuelMtd = data.fuel.filter(f => mtd(f.logged_at)).reduce((s, f) => s + Number(f.total_cost_kes || 0), 0)
+  const fleetFuel30 = data.fuel.filter(f => in30(f.logged_at)).reduce((s, f) => s + Number(f.total_cost_kes || 0), 0)
   const fleetOpenSnags = data.snags.filter(n => ACTIVE_SNAG.includes(n.status)).length
   const fleetOverdue = data.maint.filter(m => evalMaint(m, odoBy[m.vehicle_id]).status === 'overdue').length
 
@@ -97,11 +103,11 @@ export default function Dashboard() {
   const nextDue = [...avMaint].filter(m => m.remKm != null && m.status !== 'overdue')
     .sort((a, b) => a.remKm - b.remKm)[0]
 
-  const total = (arr, f = () => true) => arr.filter(f).reduce((s, x) => s + Number(x.total_cost_kes || 0), 0)
+  const total = (arr, f) => arr.filter(f).reduce((s, x) => s + Number(x.total_cost_kes || 0), 0)
   const spend = {
-    fuel: total(fuelDesc, f => in90(f.logged_at)),
-    service: total(avSvc, s => in90(s.serviced_at)),
-    parts: total(avParts, p => in90(p.purchased_at)),
+    fuel:    { mtd: total(fuelDesc, f => mtd(f.logged_at)), d30: total(fuelDesc, f => in30(f.logged_at)) },
+    service: { mtd: total(avSvc, s => mtd(s.serviced_at)), d30: total(avSvc, s => in30(s.serviced_at)) },
+    parts:   { mtd: total(avParts, p => mtd(p.purchased_at)), d30: total(avParts, p => in30(p.purchased_at)) },
   }
 
   const activity = [
@@ -118,7 +124,7 @@ export default function Dashboard() {
       {/* ---- fleet strip ---- */}
       <div className="fuel-stats-grid">
         <div className="card"><div className="card-label">Vehicles</div><div className="card-value">{vehicles.length}</div><div className="card-sub">in the fleet</div></div>
-        <div className="card"><div className="card-label">Fuel · 90d</div><div className="card-value">{kes(fleetFuel90)} <span style={{ fontSize: 14, color: 'var(--text-mid)' }}>KES</span></div><div className="card-sub">last 90 days, all vehicles</div></div>
+        <div className="card"><div className="card-label">Fuel · MTD</div><div className="card-value">{kes(fleetFuelMtd)} <span style={{ fontSize: 14, color: 'var(--text-mid)' }}>KES</span></div><div className="card-sub">last 30d: KES {kes(fleetFuel30)}</div></div>
         <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/snags')}>
           <div className="card-label">Open Snags</div>
           <div className="card-value" style={{ color: fleetOpenSnags ? '#e74c3c' : undefined }}>{fleetOpenSnags}</div>
@@ -194,17 +200,17 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* spend — last 90 days only (lifetime totals intentionally omitted) */}
-          <h3 style={{ marginTop: 24, marginBottom: 12 }}>Spend · last 90 days</h3>
+          {/* spend — month to date (headline) + last 30 days (small print); no lifetime totals */}
+          <h3 style={{ marginTop: 24, marginBottom: 12 }}>Spend · month to date</h3>
           <div className="fuel-stats-grid">
             {[
-              { label: 'Fuel', v: spend.fuel }, { label: 'Service', v: spend.service }, { label: 'Parts', v: spend.parts },
-              { label: 'Total', v: spend.fuel + spend.service + spend.parts },
-            ].map(({ label, v }) => (
+              { label: 'Fuel', s: spend.fuel }, { label: 'Service', s: spend.service }, { label: 'Parts', s: spend.parts },
+              { label: 'Total', s: { mtd: spend.fuel.mtd + spend.service.mtd + spend.parts.mtd, d30: spend.fuel.d30 + spend.service.d30 + spend.parts.d30 } },
+            ].map(({ label, s }) => (
               <div className="card" key={label}>
                 <div className="card-label">{label}</div>
-                <div className="card-value">{kes(v)} <span style={{ fontSize: 13, color: 'var(--text-mid)' }}>KES</span></div>
-                <div className="card-sub">last 90 days</div>
+                <div className="card-value">{kes(s.mtd)} <span style={{ fontSize: 13, color: 'var(--text-mid)' }}>KES</span></div>
+                <div className="card-sub">last 30 days: KES {kes(s.d30)}</div>
               </div>
             ))}
           </div>
