@@ -17,7 +17,7 @@ Stack: React 19 · Vite 8 · React Router 7 · Supabase (auth + Postgres) · Rec
 | 03 | Service Log                                  | ✅ Done (live in DB) |
 | 04 | Parts Log                                    | ✅ Done (live in DB) |
 | 05 | Maintenance Schedule                         | ✅ Done (live in DB; 7 aCar reminders) |
-| 07 | Dashboard                                    | ⬜ Stub |
+| 07 | Dashboard                                    | ✅ Done (live) |
 | 08 | Analysis                                     | ⬜ Stub |
 | 09 | Snags                                        | ✅ Done (live in DB) |
 
