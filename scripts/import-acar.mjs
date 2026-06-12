@@ -47,6 +47,14 @@ const isoDate = (b, tag) => {
   return m ? `${m[3]}-${m[1]}-${m[2]}` : null
 }
 const titleCase = (s) => (s ? s[0].toUpperCase() + s.slice(1) : null)
+const toMonths = (interval, unit) => {
+  if (interval == null) return null
+  const u = (unit || 'months').toLowerCase()
+  if (u.startsWith('year')) return interval * 12
+  if (u.startsWith('week')) return Math.round(interval * 7 / 30.44 * 10) / 10
+  if (u.startsWith('day')) return Math.round(interval / 30.44 * 10) / 10
+  return interval
+}
 
 const vehicles = []
 const vehRe = /<vehicle id="(\d+)">([\s\S]*?)<\/vehicle>/g
@@ -69,7 +77,7 @@ while ((vm = vehRe.exec(xml))) {
     fuel_tank_capacity: tank ? tank : null,
     purchase_date: null, purchase_price_kes: null, odometer_at_purchase: null,
     notes: 'Imported from aCar',
-    fuels: [], services: [],
+    fuels: [], services: [], maintenance: [],
   }
 
   const fRe = /<fillup-record id="\d+">([\s\S]*?)<\/fillup-record>/g
@@ -113,6 +121,24 @@ while ((vm = vehRe.exec(xml))) {
       total_cost_kes: num(b, 'total-cost') ?? 0,
     })
   }
+  const rRe = /<reminder ([^>]*)>([\s\S]*?)<\/reminder>/g
+  let rm
+  while ((rm = rRe.exec(block))) {
+    const subM = rm[1].match(/event-subtype-id="(\d+)"/)
+    const b = rm[2]
+    const distInt = num(b, 'distance-interval')
+    const distDue = num(b, 'distance-due')
+    v.maintenance.push({
+      item: (subM && subtypes[subM[1]]) || 'Service',
+      distance_interval_km: distInt,
+      time_interval_months: toMonths(num(b, 'time-interval'), field(b, 'time-unit')),
+      last_done_odometer: (distDue != null && distInt != null) ? distDue - distInt : null,
+      last_done_date: null,
+      next_due_odometer: distDue,
+      next_due_date: isoDate(b, 'time-due'),
+      notes: 'Imported from aCar reminder',
+    })
+  }
   vehicles.push(v)
 }
 
@@ -131,7 +157,7 @@ sql += '-- Re-run this file ANY TIME to reset the data to this pristine state.\n
 sql += '-- It truncates the data tables (auth/login is NOT touched) and re-inserts.\n'
 sql += '-- ============================================================\n'
 sql += 'begin;\n'
-sql += 'truncate table public.snags, public.parts, public.service_logs, public.fuel_logs, public.vehicles restart identity cascade;\n\n'
+sql += 'truncate table public.snags, public.parts, public.maintenance_schedules, public.service_logs, public.fuel_logs, public.vehicles restart identity cascade;\n\n'
 
 const vCols = ['id', 'name', 'make', 'model', 'sub_model', 'year', 'engine_description',
   'transmission', 'drive_type', 'body_type', 'fuel_type', 'fuel_tank_capacity',
@@ -162,6 +188,16 @@ for (const v of vehicles) for (const s of v.services) {
 }
 sql += '\n'
 
+const mCols = ['vehicle_id', 'item', 'distance_interval_km', 'time_interval_months',
+  'last_done_odometer', 'last_done_date', 'next_due_odometer', 'next_due_date', 'notes', 'is_active']
+let nMaint = 0
+for (const v of vehicles) for (const m of v.maintenance) {
+  sql += `insert into public.maintenance_schedules (${mCols.join(', ')}) values ` +
+    rows(mCols, { ...m, vehicle_id: v.uuid, is_active: true }) + ';\n'
+  nMaint++
+}
+sql += '\n'
+
 // recompute km_since_last by previous odometer within each vehicle (trigger sets null on bulk insert)
 sql += `update public.fuel_logs f set km_since_last = o.kml from (
   select id, odometer_km - lag(odometer_km) over (partition by vehicle_id order by odometer_km) as kml
@@ -178,7 +214,7 @@ console.log('Vehicles:', vehicles.length)
 for (const v of vehicles) {
   console.log(`  - ${v.year} ${v.make} ${v.model} ${v.sub_model || ''} | ${v.fuels.length} fuel, ${v.services.length} services | purchased ${v.purchase_date || '—'} @ ${v.odometer_at_purchase || '—'}km for KES ${v.purchase_price_kes || '—'}`)
 }
-console.log('TOTAL fuel logs:', nFuel, '| TOTAL service logs:', nSvc)
+console.log('TOTAL fuel logs:', nFuel, '| TOTAL service logs:', nSvc, '| TOTAL maintenance:', nMaint)
 console.log('\nSAMPLE fuel log:', JSON.stringify(vehicles[0].fuels[0], null, 2))
 console.log('\nSAMPLE service log:', JSON.stringify(vehicles[0].services[0], null, 2))
 console.log('\n→ wrote db/seed_golden.sql (' + (sql.length / 1024).toFixed(0) + ' KB)')
@@ -193,7 +229,7 @@ if (process.argv.includes('--apply')) {
   const { error: aerr } = await sb.auth.signInWithPassword({ email: 'chris.odeny@gmail.com', password: 'Test123' })
   if (aerr) { console.error('✗ login failed:', aerr.message); process.exit(1) }
   console.log('[apply] logged in — clearing data tables...')
-  for (const t of ['snags', 'parts', 'service_logs', 'fuel_logs', 'vehicles']) {
+  for (const t of ['snags', 'parts', 'maintenance_schedules', 'service_logs', 'fuel_logs', 'vehicles']) {
     const { error } = await sb.from(t).delete().neq('id', '00000000-0000-0000-0000-000000000000')
     if (error) { console.error(`✗ clear ${t}:`, error.message); process.exit(1) }
   }
@@ -214,5 +250,37 @@ if (process.argv.includes('--apply')) {
   const svcRows = vehicles.flatMap(v => v.services.map(s => ({ vehicle_id: v.uuid, ...s })))
   res = await sb.from('service_logs').insert(svcRows)
   if (res.error) { console.error('✗ service_logs:', res.error.message); process.exit(1) }
-  console.log(`[apply] ✓ inserted ${vRows.length} vehicles, ${fuelRows.length} fuel, ${svcRows.length} services`)
+  const mRows = vehicles.flatMap(v => v.maintenance.map(m => ({ vehicle_id: v.uuid, ...m, is_active: true })))
+  if (mRows.length) {
+    res = await sb.from('maintenance_schedules').insert(mRows)
+    if (res.error) { console.error('✗ maintenance:', res.error.message); process.exit(1) }
+  }
+  console.log(`[apply] ✓ inserted ${vRows.length} vehicles, ${fuelRows.length} fuel, ${svcRows.length} services, ${mRows.length} maintenance`)
+}
+
+// ---- non-destructive: load ONLY maintenance schedules onto existing live vehicles ----
+if (process.argv.includes('--maintenance')) {
+  const { createClient } = await import('@supabase/supabase-js')
+  const e = readFileSync('.env', 'utf8')
+  const url = e.match(/VITE_SUPABASE_URL=(.+)/)[1].trim()
+  const key = e.match(/VITE_SUPABASE_ANON_KEY=(.+)/)[1].trim()
+  const sb = createClient(url, key)
+  const { error: aerr } = await sb.auth.signInWithPassword({ email: 'chris.odeny@gmail.com', password: 'Test123' })
+  if (aerr) { console.error('✗ login failed:', aerr.message); process.exit(1) }
+  const { data: live, error: lerr } = await sb.from('vehicles').select('id, make, model, year')
+  if (lerr) { console.error('✗ fetch vehicles:', lerr.message); process.exit(1) }
+  const rows = []
+  for (const v of vehicles) {
+    if (!v.maintenance.length) continue
+    const lv = live.find(l => l.make === v.make && l.model === v.model && Number(l.year) === Number(v.year))
+    if (!lv) { console.warn(`! no live match for ${v.make} ${v.model} ${v.year}`); continue }
+    for (const m of v.maintenance) rows.push({ vehicle_id: lv.id, ...m, is_active: true })
+  }
+  if (rows.length) {
+    const vids = [...new Set(rows.map(r => r.vehicle_id))]
+    await sb.from('maintenance_schedules').delete().in('vehicle_id', vids)  // idempotent re-run
+    const res = await sb.from('maintenance_schedules').insert(rows)
+    if (res.error) { console.error('✗ maintenance:', res.error.message); process.exit(1) }
+  }
+  console.log(`[maintenance] ✓ loaded ${rows.length} schedule items onto live vehicles`)
 }
