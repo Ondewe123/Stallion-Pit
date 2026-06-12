@@ -16,7 +16,7 @@ Stack: React 19 · Vite 8 · React Router 7 · Supabase (auth + Postgres) · Rec
 | 06 | Fuel Log — fill-ups + corrected L/100km      | ✅ Done |
 | 03 | Service Log                                  | ✅ Done (live in DB) |
 | 04 | Parts Log                                    | ✅ Done (live in DB) |
-| 05 | Maintenance Schedule                         | 🔶 Built — create table (0004) then `--maintenance` loads 7 reminders |
+| 05 | Maintenance Schedule                         | ✅ Done (live in DB; 7 aCar reminders) |
 | 07 | Dashboard                                    | ⬜ Stub |
 | 08 | Analysis                                     | ⬜ Stub |
 | 09 | Snags                                        | ✅ Done (live in DB) |

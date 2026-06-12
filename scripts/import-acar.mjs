@@ -5,7 +5,12 @@
 // full aCar dataset with fixed UUIDs. Re-runnable any time to reset to the pristine state.
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
-import { randomUUID } from 'node:crypto'
+import { createHash } from 'node:crypto'
+
+// deterministic uuid from a stable key → reproducible seed_golden.sql across runs
+const stableUuid = (s) =>
+  ((h) => [h.slice(0, 8), h.slice(8, 12), h.slice(12, 16), h.slice(16, 20), h.slice(20, 32)].join('-'))(
+    createHash('sha1').update('stallion-pit:' + s).digest('hex'))
 
 const DIR = 'Acar Old Records/12th June 2026'
 
@@ -63,7 +68,7 @@ while ((vm = vehRe.exec(xml))) {
   const block = vm[2]
   const tank = num(block, 'fuel-tank-capacity')
   const v = {
-    uuid: randomUUID(),
+    uuid: stableUuid(vm[1]),
     name: field(block, 'name'),
     make: field(block, 'make'),
     model: field(block, 'model'),
