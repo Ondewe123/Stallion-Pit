@@ -19,7 +19,7 @@ Stack: React 19 · Vite 8 · React Router 7 · Supabase (auth + Postgres) · Rec
 | 05 | Maintenance Schedule                         | ⬜ Stub |
 | 07 | Dashboard                                    | ⬜ Stub |
 | 08 | Analysis                                     | ⬜ Stub |
-| 09 | Snags                                        | ⬜ Stub |
+| 09 | Snags                                        | ✅ Done (live in DB) |
 
 3 of 9 modules built. Fuel was built ahead of 03–05, so numbering is not strictly sequential.
 
