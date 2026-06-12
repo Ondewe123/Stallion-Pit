@@ -1,14 +1,330 @@
-export default function PartsLog() {
+import { useState, useEffect, useCallback } from 'react'
+import { useVehicle } from '../contexts/VehicleContext'
+import { supabase } from '../lib/supabase'
+
+const CATEGORIES = [
+  'Engine', 'Brakes', 'Suspension', 'Filters', 'Electrical',
+  'Body', 'Tyres', 'Fluids', 'Consumable', 'Other',
+]
+const STATUSES = ['Purchased', 'Fitted', 'Returned']
+
+const EMPTY_FORM = {
+  purchased_at: new Date().toISOString().split('T')[0],
+  part_name: '',
+  part_number: '',
+  brand: '',
+  category: 'Engine',
+  supplier: '',
+  quantity: '1',
+  unit_cost_kes: '',
+  odometer_km: '',
+  status: 'Purchased',
+  notes: '',
+}
+
+const lineTotal = (form) => {
+  const qty = parseFloat(form.quantity)
+  const unit = parseFloat(form.unit_cost_kes)
+  if (isNaN(qty) || isNaN(unit)) return null
+  return qty * unit
+}
+
+const STATUS_BADGE = { Fitted: 'badge-green', Purchased: 'badge-amber', Returned: 'badge' }
+
+function PartForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer }) {
+  const [form, setForm] = useState({ ...EMPTY_FORM, ...initial })
+  const set = (field, value) => setForm(f => ({ ...f, [field]: value }))
+
+  const total = lineTotal(form)   // derived — no effect needed
+
+  const handleSubmit = (e) => { e.preventDefault(); onSave(form) }
+
   return (
+    <form onSubmit={handleSubmit} className="parts-form">
+      <div className="form-row-2">
+        <div className="form-group">
+          <label>Date *</label>
+          <input type="date" value={form.purchased_at}
+            onChange={e => set('purchased_at', e.target.value)} required />
+        </div>
+        <div className="form-group">
+          <label>Part Name *</label>
+          <input value={form.part_name} onChange={e => set('part_name', e.target.value)}
+            placeholder="e.g. Oil filter" required />
+        </div>
+      </div>
+
+      <div className="form-row-2">
+        <div className="form-group">
+          <label>Part Number</label>
+          <input value={form.part_number} onChange={e => set('part_number', e.target.value)}
+            placeholder="e.g. A 271 180 00 09" />
+        </div>
+        <div className="form-group">
+          <label>Brand</label>
+          <input value={form.brand} onChange={e => set('brand', e.target.value)}
+            placeholder="e.g. Mann, Bosch" />
+        </div>
+      </div>
+
+      <div className="form-row-2">
+        <div className="form-group">
+          <label>Category</label>
+          <select value={form.category} onChange={e => set('category', e.target.value)}>
+            {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+          </select>
+        </div>
+        <div className="form-group">
+          <label>Supplier</label>
+          <input value={form.supplier} onChange={e => set('supplier', e.target.value)}
+            placeholder="e.g. Kingsway, Autoxpress" />
+        </div>
+      </div>
+
+      <div className="form-row-2">
+        <div className="form-group">
+          <label>Quantity</label>
+          <input type="number" step="1" min="0" value={form.quantity}
+            onChange={e => set('quantity', e.target.value)} placeholder="1" />
+        </div>
+        <div className="form-group">
+          <label>Unit Cost (KES)</label>
+          <input type="number" step="0.01" value={form.unit_cost_kes}
+            onChange={e => set('unit_cost_kes', e.target.value)} placeholder="e.g. 1200" />
+        </div>
+      </div>
+
+      <div className="form-group">
+        <label>Total (KES) — Auto-calculated</label>
+        <input type="text" readOnly
+          value={total != null ? total.toLocaleString() : ''}
+          placeholder="Quantity × Unit Cost"
+          style={{ background: 'var(--charcoal)', color: 'var(--gold)', fontWeight: '500', cursor: 'not-allowed' }} />
+      </div>
+
+      <div className="form-row-2">
+        <div className="form-group">
+          <label>Odometer (km)</label>
+          <input type="number" value={form.odometer_km}
+            onChange={e => set('odometer_km', e.target.value)}
+            placeholder={lastOdometer ? `Last: ${lastOdometer.toLocaleString()}` : 'optional'} />
+        </div>
+        <div className="form-group">
+          <label>Status</label>
+          <select value={form.status} onChange={e => set('status', e.target.value)}>
+            {STATUSES.map(s => <option key={s}>{s}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div className="form-group">
+        <label>Notes</label>
+        <textarea value={form.notes} onChange={e => set('notes', e.target.value)}
+          placeholder="Any notes about this part..." rows={2} style={{ resize: 'vertical' }} />
+      </div>
+
+      <div className="form-actions">
+        <button type="button" className="btn-secondary" onClick={onCancel} disabled={saving}>Cancel</button>
+        <button type="submit" className="btn-primary"
+          style={{ width: 'auto', padding: '10px 28px' }} disabled={saving}>
+          {saving ? 'Saving...' : 'Save Part'}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+export default function PartsLog() {
+  const { activeVehicle } = useVehicle()
+  const [logs, setLogs] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [view, setView] = useState('list')   // list | add | edit
+  const [selected, setSelected] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const [deleteConfirm, setDeleteConfirm] = useState(null)
+
+  const fetchLogs = useCallback(async () => {
+    if (!activeVehicle) return
+    setLoading(true)
+    const { data } = await supabase
+      .from('parts')
+      .select('*')
+      .eq('vehicle_id', activeVehicle.id)
+      .order('purchased_at', { ascending: false })
+    setLogs(data || [])
+    setLoading(false)
+  }, [activeVehicle])
+
+  useEffect(() => { fetchLogs() }, [fetchLogs])
+
+  const clean = (form) => {
+    const out = { ...form }
+    Object.keys(out).forEach(k => { if (out[k] === '') out[k] = null })
+    out.total_cost_kes = lineTotal(form)
+    out.vehicle_id = activeVehicle.id
+    return out
+  }
+
+  const handleAdd = async (form) => {
+    setSaving(true); setError(null)
+    const { error } = await supabase.from('parts').insert([clean(form)])
+    if (error) { setError(error.message); setSaving(false); return }
+    await fetchLogs(); setSaving(false); setView('list')
+  }
+
+  const handleEdit = async (form) => {
+    setSaving(true); setError(null)
+    const { error } = await supabase
+      .from('parts').update(clean(form)).eq('id', selected.id)
+    if (error) { setError(error.message); setSaving(false); return }
+    await fetchLogs(); setSaving(false); setView('list')
+  }
+
+  const handleDelete = async (id) => {
+    await supabase.from('parts').delete().eq('id', id)
+    setDeleteConfirm(null)
+    await fetchLogs()
+  }
+
+  const totalSpent = logs.reduce((sum, l) => sum + Number(l.total_cost_kes || 0), 0)
+  const totalUnits = logs.reduce((sum, l) => sum + Number(l.quantity || 0), 0)
+  const currentOdo = logs.reduce((max, l) => Math.max(max, Number(l.odometer_km || 0)), 0)
+  const lastOdometer = currentOdo || null
+
+  if (!activeVehicle) return (
+    <div className="page">
+      <div className="page-header"><h2>Parts Log</h2></div>
+      <div className="placeholder-card"><span>📦</span><p>Select a vehicle to view parts</p></div>
+    </div>
+  )
+
+  if (view === 'add') return (
     <div className="page">
       <div className="page-header">
-        <h2>Parts Log</h2>
-        <p className="page-sub">Parts purchased and procurement history</p>
+        <h2>Log Part</h2>
+        <p className="page-sub">{activeVehicle.name} · {activeVehicle.year} {activeVehicle.make} {activeVehicle.model}</p>
       </div>
-      <div className="placeholder-card">
-        <span>📦</span>
-        <p>Parts Log — coming in Module 04</p>
+      {error && <div className="form-error">{error}</div>}
+      <PartForm onSave={handleAdd} onCancel={() => setView('list')} saving={saving} lastOdometer={lastOdometer} />
+    </div>
+  )
+
+  if (view === 'edit' && selected) return (
+    <div className="page">
+      <div className="page-header">
+        <h2>Edit Part</h2>
+        <p className="page-sub">{selected.part_name}</p>
       </div>
+      {error && <div className="form-error">{error}</div>}
+      <PartForm
+        initial={{ ...selected, purchased_at: selected.purchased_at?.split('T')[0] || selected.purchased_at }}
+        onSave={handleEdit}
+        onCancel={() => setView('list')}
+        saving={saving}
+        lastOdometer={lastOdometer}
+      />
+    </div>
+  )
+
+  return (
+    <div className="page">
+      <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div>
+          <h2>Parts Log</h2>
+          <p className="page-sub">{activeVehicle.name} · {activeVehicle.year} {activeVehicle.make} {activeVehicle.model}</p>
+        </div>
+        <button className="btn-primary" style={{ width: 'auto', padding: '10px 24px' }}
+          onClick={() => setView('add')}>
+          + Log Part
+        </button>
+      </div>
+
+      {logs.length > 0 && (
+        <div className="fuel-stats-grid">
+          <div className="card">
+            <div className="card-label">Total Spent</div>
+            <div className="card-value">
+              {totalSpent.toLocaleString()} <span style={{ fontSize: 14, color: 'var(--text-mid)' }}>KES</span>
+            </div>
+            <div className="card-sub">on parts</div>
+          </div>
+          <div className="card">
+            <div className="card-label">Total Entries</div>
+            <div className="card-value">{logs.length}</div>
+            <div className="card-sub">{totalUnits.toLocaleString()} units total</div>
+          </div>
+          <div className="card">
+            <div className="card-label">Last Purchase</div>
+            <div className="card-value" style={{ fontSize: 18 }}>{logs[0].part_name}</div>
+            <div className="card-sub">{logs[0].purchased_at}{logs[0].supplier ? ` · ${logs[0].supplier}` : ''}</div>
+          </div>
+          <div className="card">
+            <div className="card-label">Current Odometer</div>
+            <div className="card-value">{currentOdo ? currentOdo.toLocaleString() : '—'} <span style={{ fontSize: 14, color: 'var(--text-mid)' }}>km</span></div>
+            <div className="card-sub">highest recorded</div>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="placeholder-card"><p>Loading...</p></div>
+      ) : logs.length === 0 ? (
+        <div className="placeholder-card">
+          <span>📦</span>
+          <p>No parts logged yet — log your first part</p>
+        </div>
+      ) : (
+        <div className="table-wrapper">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Part</th>
+                <th>Category</th>
+                <th>Supplier</th>
+                <th>Qty</th>
+                <th>Total (KES)</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {logs.map(log => (
+                <tr key={log.id}>
+                  <td className="mono">{log.purchased_at}</td>
+                  <td className="primary">
+                    {log.part_name}
+                    {(log.brand || log.part_number) && (
+                      <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>
+                        {[log.brand, log.part_number].filter(Boolean).join(' · ')}
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ color: 'var(--text-dim)', fontSize: 12 }}>{log.category || '—'}</td>
+                  <td style={{ color: 'var(--text-dim)', fontSize: 12 }}>{log.supplier || '—'}</td>
+                  <td className="mono">{log.quantity != null ? Number(log.quantity).toLocaleString() : '—'}</td>
+                  <td className="mono">{log.total_cost_kes != null ? Number(log.total_cost_kes).toLocaleString() : '—'}</td>
+                  <td><span className={`badge ${STATUS_BADGE[log.status] || 'badge'}`}>{log.status}</span></td>
+                  <td>
+                    <div className="row-actions">
+                      <button className="row-btn" onClick={() => { setSelected(log); setView('edit') }}>Edit</button>
+                      {deleteConfirm === log.id ? (
+                        <>
+                          <button className="row-btn row-btn-danger" onClick={() => handleDelete(log.id)}>Confirm</button>
+                          <button className="row-btn" onClick={() => setDeleteConfirm(null)}>Cancel</button>
+                        </>
+                      ) : (
+                        <button className="row-btn row-btn-danger" onClick={() => setDeleteConfirm(log.id)}>Delete</button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }
