@@ -18,7 +18,7 @@ Stack: React 19 · Vite 8 · React Router 7 · Supabase (auth + Postgres) · Rec
 | 04 | Parts Log                                    | ✅ Done (live in DB) |
 | 05 | Maintenance Schedule                         | ✅ Done (live in DB; 7 aCar reminders) |
 | 07 | Dashboard                                    | ✅ Done (live) |
-| 08 | Analysis                                     | ⬜ Stub |
+| 08 | Analysis                                     | ✅ Done (live) |
 | 09 | Snags                                        | ✅ Done (live in DB) |
 
 3 of 9 modules built. Fuel was built ahead of 03–05, so numbering is not strictly sequential.
