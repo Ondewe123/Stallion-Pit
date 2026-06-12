@@ -78,6 +78,7 @@ input::placeholder { color: var(--text-dim); }
 .app-shell {
   display: flex;
   height: 100vh;
+  height: 100dvh; /* dynamic viewport: pins the mobile bottom nav to the visible screen */
   overflow: hidden;
 }
 
