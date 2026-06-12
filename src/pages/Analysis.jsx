@@ -39,7 +39,7 @@ function ChartCard({ title, sub, children, empty }) {
           Not enough data for this range
         </div>
       ) : (
-        <div style={{ height: 240 }}><ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer></div>
+        <div style={{ height: 240, width: '100%' }}><ResponsiveContainer width="100%" height="100%" minWidth={0}>{children}</ResponsiveContainer></div>
       )}
     </div>
   )
@@ -115,7 +115,7 @@ export default function Analysis() {
         </div>
       </div>
 
-      <div className="analysis-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: 16 }}>
+      <div className="analysis-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 16 }}>
         <ChartCard title="Fuel Consumption" sub="L/100km · rolling 3-fill corrected" empty={consumption.length < 2}>
           <LineChart data={consumption} margin={{ top: 6, right: 12, bottom: 0, left: -8 }}>
             <CartesianGrid stroke={GRID} vertical={false} />
