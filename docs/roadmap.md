@@ -14,8 +14,8 @@ Stack: React 19 · Vite 8 · React Router 7 · Supabase (auth + Postgres) · Rec
 | 01 | Scaffold · Auth · Layout · Vehicle switching | ✅ Done |
 | 02 | Fleet — vehicle CRUD + spec sheet            | ✅ Done |
 | 06 | Fuel Log — fill-ups + corrected L/100km      | ✅ Done |
-| 03 | Service Log                                  | 🔶 Built — run `supabase/migrations/0001_service_logs.sql` |
-| 04 | Parts Log                                    | 🔶 Built — run `supabase/migrations/0002_parts.sql` |
+| 03 | Service Log                                  | ✅ Done (live in DB) |
+| 04 | Parts Log                                    | ✅ Done (live in DB) |
 | 05 | Maintenance Schedule                         | ⬜ Stub |
 | 07 | Dashboard                                    | ⬜ Stub |
 | 08 | Analysis                                     | ⬜ Stub |
@@ -55,5 +55,7 @@ Each module reuses the proven pattern in Fleet/FuelLog: per-vehicle Supabase tab
   use *if* RLS is on; still, untracking it is good practice.
 - **FuelLog refinement** — the auto-calc volume `setState`-in-effect ([src/pages/FuelLog.jsx](../src/pages/FuelLog.jsx))
   should become a derived render value (eslint `react-hooks/set-state-in-effect`). Non-blocking.
-- **Supabase project ref:** `smellxhfpjyjweledvco`. The Claude-linked Supabase MCP account does **not**
-  have access to this project, so live introspection isn't available — schemas are derived from code.
+- **Supabase project:** `Stallion Pit` org, ref `mwakgpzcqoalxtvqucki` (eu-west-1), created 2026-06-12.
+  The old `.env` pointed at a ghost project (`smellxhfpjyjweledvco`) that never existed — that's why nothing
+  connected. The live DB now has all 4 tables + RLS, created directly via the Supabase MCP. Login:
+  `chris.odeny@gmail.com` / `Test123`.
