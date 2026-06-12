@@ -70,8 +70,12 @@ export default function Dashboard() {
   for (const f of data.fuel) odoBy[f.vehicle_id] = Math.max(odoBy[f.vehicle_id] || 0, Number(f.odometer_km || 0))
   for (const s of data.svc) odoBy[s.vehicle_id] = Math.max(odoBy[s.vehicle_id] || 0, Number(s.odometer_km || 0))
 
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const since90 = new Date(today); since90.setDate(today.getDate() - 90)
+  const in90 = (d) => d && new Date(d + 'T00:00:00') >= since90
+
   // ---- fleet rollup ----
-  const fleetFuelSpend = data.fuel.reduce((s, f) => s + Number(f.total_cost_kes || 0), 0)
+  const fleetFuel90 = data.fuel.filter(f => in90(f.logged_at)).reduce((s, f) => s + Number(f.total_cost_kes || 0), 0)
   const fleetOpenSnags = data.snags.filter(n => ACTIVE_SNAG.includes(n.status)).length
   const fleetOverdue = data.maint.filter(m => evalMaint(m, odoBy[m.vehicle_id]).status === 'overdue').length
 
@@ -93,15 +97,11 @@ export default function Dashboard() {
   const nextDue = [...avMaint].filter(m => m.remKm != null && m.status !== 'overdue')
     .sort((a, b) => a.remKm - b.remKm)[0]
 
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  const since90 = new Date(today); since90.setDate(today.getDate() - 90)
-  const in90 = (d) => d && new Date(d + 'T00:00:00') >= since90
   const total = (arr, f = () => true) => arr.filter(f).reduce((s, x) => s + Number(x.total_cost_kes || 0), 0)
-
   const spend = {
-    fuel: { all: total(fuelDesc), recent: total(fuelDesc, f => in90(f.logged_at)) },
-    service: { all: total(avSvc), recent: total(avSvc, s => in90(s.serviced_at)) },
-    parts: { all: total(avParts), recent: total(avParts, p => in90(p.purchased_at)) },
+    fuel: total(fuelDesc, f => in90(f.logged_at)),
+    service: total(avSvc, s => in90(s.serviced_at)),
+    parts: total(avParts, p => in90(p.purchased_at)),
   }
 
   const activity = [
@@ -118,7 +118,7 @@ export default function Dashboard() {
       {/* ---- fleet strip ---- */}
       <div className="fuel-stats-grid">
         <div className="card"><div className="card-label">Vehicles</div><div className="card-value">{vehicles.length}</div><div className="card-sub">in the fleet</div></div>
-        <div className="card"><div className="card-label">Lifetime Fuel</div><div className="card-value">{kes(fleetFuelSpend)} <span style={{ fontSize: 14, color: 'var(--text-mid)' }}>KES</span></div><div className="card-sub">all vehicles</div></div>
+        <div className="card"><div className="card-label">Fuel · 90d</div><div className="card-value">{kes(fleetFuel90)} <span style={{ fontSize: 14, color: 'var(--text-mid)' }}>KES</span></div><div className="card-sub">last 90 days, all vehicles</div></div>
         <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/snags')}>
           <div className="card-label">Open Snags</div>
           <div className="card-value" style={{ color: fleetOpenSnags ? '#e74c3c' : undefined }}>{fleetOpenSnags}</div>
@@ -194,17 +194,17 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* spend */}
-          <h3 style={{ marginTop: 24, marginBottom: 12 }}>Spend</h3>
+          {/* spend — last 90 days only (lifetime totals intentionally omitted) */}
+          <h3 style={{ marginTop: 24, marginBottom: 12 }}>Spend · last 90 days</h3>
           <div className="fuel-stats-grid">
             {[
-              { label: 'Fuel', s: spend.fuel }, { label: 'Service', s: spend.service }, { label: 'Parts', s: spend.parts },
-              { label: 'Total', s: { all: spend.fuel.all + spend.service.all + spend.parts.all, recent: spend.fuel.recent + spend.service.recent + spend.parts.recent } },
-            ].map(({ label, s }) => (
+              { label: 'Fuel', v: spend.fuel }, { label: 'Service', v: spend.service }, { label: 'Parts', v: spend.parts },
+              { label: 'Total', v: spend.fuel + spend.service + spend.parts },
+            ].map(({ label, v }) => (
               <div className="card" key={label}>
                 <div className="card-label">{label}</div>
-                <div className="card-value">{kes(s.all)} <span style={{ fontSize: 13, color: 'var(--text-mid)' }}>KES</span></div>
-                <div className="card-sub">last 90d: KES {kes(s.recent)}</div>
+                <div className="card-value">{kes(v)} <span style={{ fontSize: 13, color: 'var(--text-mid)' }}>KES</span></div>
+                <div className="card-sub">last 90 days</div>
               </div>
             ))}
           </div>
