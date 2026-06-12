@@ -4,14 +4,14 @@ import { useAuth } from '../contexts/AuthContext'
 import VehicleSelector from './VehicleSelector'
 
 const NAV_ITEMS = [
-  { path: '/',            label: 'Dashboard',  icon: '◈' },
-  { path: '/fleet',       label: 'Fleet',      icon: '🚗' },
-  { path: '/fuel',        label: 'Fuel Log',   icon: '⛽' },
-  { path: '/service',     label: 'Service',    icon: '🔧' },
-  { path: '/parts',       label: 'Parts',      icon: '📦' },
-  { path: '/maintenance', label: 'Schedule',   icon: '📅' },
-  { path: '/snags',       label: 'Snags',      icon: '⚠️'  },
-  { path: '/analysis',    label: 'Analysis',   icon: '📊' },
+  { path: '/',            label: 'Dashboard', short: 'Home',     icon: '◈' },
+  { path: '/fleet',       label: 'Fleet',     short: 'Fleet',    icon: '🚗' },
+  { path: '/fuel',        label: 'Fuel Log',  short: 'Fuel',     icon: '⛽' },
+  { path: '/service',     label: 'Service',   short: 'Service',  icon: '🔧' },
+  { path: '/parts',       label: 'Parts',     short: 'Parts',    icon: '📦' },
+  { path: '/maintenance', label: 'Schedule',  short: 'Schedule', icon: '📅' },
+  { path: '/snags',       label: 'Snags',     short: 'Snags',    icon: '⚠️'  },
+  { path: '/analysis',    label: 'Analysis',  short: 'Stats',    icon: '📊' },
 ]
 
 export default function Layout() {
@@ -26,6 +26,7 @@ export default function Layout() {
 
   return (
     <div className={`app-shell ${collapsed ? 'sidebar-collapsed' : ''}`}>
+      {/* Desktop sidebar */}
       <aside className="sidebar">
         <div className="sidebar-header">
           <div className="sidebar-logo">
@@ -59,9 +60,29 @@ export default function Layout() {
         </div>
       </aside>
 
+      {/* Mobile top bar */}
+      <header className="mobile-topbar">
+        <span className="logo-text">STALLION <span className="logo-accent">PIT</span></span>
+        <div className="mobile-topbar-right">
+          <VehicleSelector />
+          <button className="btn-signout mobile-signout" onClick={handleSignOut} title="Sign out">⏻</button>
+        </div>
+      </header>
+
       <main className="main-content">
         <Outlet />
       </main>
+
+      {/* Mobile bottom tab bar */}
+      <nav className="mobile-bottomnav">
+        {NAV_ITEMS.map(item => (
+          <NavLink key={item.path} to={item.path} end={item.path === '/'}
+            className={({ isActive }) => `nav-item ${isActive ? 'nav-item-active' : ''}`}>
+            <span className="nav-icon">{item.icon}</span>
+            <span className="nav-label">{item.short}</span>
+          </NavLink>
+        ))}
+      </nav>
     </div>
   )
 }
