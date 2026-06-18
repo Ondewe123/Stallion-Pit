@@ -1,16 +1,30 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
-import { DUE_SOON_KM, DUE_SOON_DAYS, addMonths, evaluate, computeNextDue } from '../lib/calc/maintenance'
+import { DUE_SOON_KM, DUE_SOON_DAYS, addMonths, evaluate, computeNextDue, byPriorityThenUrgency } from '../lib/calc/maintenance'
+
+const PRIORITY = { 1: { label: 'Critical', badge: 'badge-red' }, 2: { label: 'High', badge: 'badge-amber' }, 3: { label: 'Normal', badge: 'badge-gold' }, 4: { label: 'Low', badge: 'badge' } }
+const DIFF_BADGE = { Easy: 'badge-green', Moderate: 'badge-gold', Hard: 'badge-amber', Pro: 'badge-red' }
+const DIFFICULTIES = ['Easy', 'Moderate', 'Hard', 'Pro']
+const thr = (v) => (v == null ? undefined : Number(v))
 
 const EMPTY_FORM = {
   item: '',
+  category: '',
   distance_interval_km: '',
   time_interval_months: '',
   last_done_odometer: '',
   last_done_date: '',
   next_due_odometer: '',
   next_due_date: '',
+  priority: 3,
+  diy_difficulty: '',
+  parts_needed: '',
+  consumables_needed: '',
+  torque_spec: '',
+  warn_threshold_km: '',
+  warn_threshold_days: '',
   notes: '',
 }
 
@@ -77,6 +91,53 @@ function MaintForm({ initial = EMPTY_FORM, onSave, onCancel, saving }) {
         </div>
       </div>
 
+      <div className="form-row-2">
+        <div className="form-group">
+          <label>Priority</label>
+          <select value={form.priority ?? 3} onChange={e => set('priority', e.target.value)}>
+            {[1, 2, 3, 4].map(p => <option key={p} value={p}>{p} — {PRIORITY[p].label}</option>)}
+          </select>
+        </div>
+        <div className="form-group">
+          <label>DIY Difficulty</label>
+          <select value={form.diy_difficulty || ''} onChange={e => set('diy_difficulty', e.target.value)}>
+            <option value="">—</option>
+            {DIFFICULTIES.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div className="form-row-2">
+        <div className="form-group">
+          <label>Category</label>
+          <input value={form.category || ''} onChange={e => set('category', e.target.value)} placeholder="Engine, Brakes, …" />
+        </div>
+        <div className="form-group">
+          <label>Torque Spec</label>
+          <input value={form.torque_spec || ''} onChange={e => set('torque_spec', e.target.value)} placeholder="e.g. Sump plug 25 Nm" />
+        </div>
+      </div>
+
+      <div className="form-row-2">
+        <div className="form-group">
+          <label>Warn before (km)</label>
+          <input type="number" value={form.warn_threshold_km || ''} onChange={e => set('warn_threshold_km', e.target.value)} placeholder={`default ${DUE_SOON_KM}`} />
+        </div>
+        <div className="form-group">
+          <label>Warn before (days)</label>
+          <input type="number" value={form.warn_threshold_days || ''} onChange={e => set('warn_threshold_days', e.target.value)} placeholder={`default ${DUE_SOON_DAYS}`} />
+        </div>
+      </div>
+
+      <div className="form-group">
+        <label>Parts Needed</label>
+        <input value={form.parts_needed || ''} onChange={e => set('parts_needed', e.target.value)} placeholder="e.g. Oil filter element" />
+      </div>
+      <div className="form-group">
+        <label>Consumables</label>
+        <input value={form.consumables_needed || ''} onChange={e => set('consumables_needed', e.target.value)} placeholder="e.g. ~5 L 5W-40" />
+      </div>
+
       <div className="form-group">
         <label>Notes</label>
         <textarea value={form.notes} onChange={e => set('notes', e.target.value)}
@@ -96,6 +157,7 @@ function MaintForm({ initial = EMPTY_FORM, onSave, onCancel, saving }) {
 
 export default function Maintenance() {
   const { activeVehicle } = useVehicle()
+  const navigate = useNavigate()
   const [items, setItems] = useState([])
   const [currentOdo, setCurrentOdo] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -159,7 +221,9 @@ export default function Maintenance() {
     await fetchData()
   }
 
-  const evaluated = items.map(it => ({ ...it, ...evaluate(it, currentOdo) }))
+  const evaluated = items
+    .map(it => ({ ...it, ...evaluate(it, currentOdo, { dueSoonKm: thr(it.warn_threshold_km), dueSoonDays: thr(it.warn_threshold_days) }) }))
+    .sort(byPriorityThenUrgency)
   const overdueCount = evaluated.filter(e => e.status === 'overdue').length
   const soonCount = evaluated.filter(e => e.status === 'soon').length
 
@@ -211,10 +275,13 @@ export default function Maintenance() {
             {currentOdo ? ` · now at ${currentOdo.toLocaleString()} km` : ''}
           </p>
         </div>
-        <button className="btn-primary" style={{ width: 'auto', padding: '10px 24px' }}
-          onClick={() => setView('add')}>
-          + Add Item
-        </button>
+        <div className="row-actions" style={{ flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <button className="row-btn" onClick={() => navigate('/templates')}>📋 Apply a template</button>
+          <button className="btn-primary" style={{ width: 'auto', padding: '10px 24px' }}
+            onClick={() => setView('add')}>
+            + Add Item
+          </button>
+        </div>
       </div>
 
       {items.length > 0 && (
@@ -250,6 +317,7 @@ export default function Maintenance() {
             <thead>
               <tr>
                 <th>Item</th>
+                <th>Priority</th>
                 <th>Interval</th>
                 <th>Next Due</th>
                 <th>Remaining</th>
@@ -268,9 +336,19 @@ export default function Maintenance() {
                   it.next_due_odometer ? `${Number(it.next_due_odometer).toLocaleString()} km` : null,
                   it.next_due_date || null,
                 ].filter(Boolean).join(' · ') || '—'
+                const pri = PRIORITY[it.priority] || PRIORITY[3]
                 return (
                   <tr key={it.id}>
-                    <td className="primary">{it.item}</td>
+                    <td className="primary">
+                      {it.item}
+                      {it.category && <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{it.category}</div>}
+                      {it.parts_needed && <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>🔧 {it.parts_needed}</div>}
+                      {it.torque_spec && <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>🔩 {it.torque_spec}</div>}
+                    </td>
+                    <td>
+                      <span className={`badge ${pri.badge}`}>{pri.label}</span>
+                      {it.diy_difficulty && <div style={{ marginTop: 4 }}><span className={`badge ${DIFF_BADGE[it.diy_difficulty] || 'badge'}`}>{it.diy_difficulty}</span></div>}
+                    </td>
                     <td className="mono" style={{ fontSize: 12 }}>{interval}</td>
                     <td className="mono" style={{ fontSize: 12 }}>{nextDue}</td>
                     <td style={{ fontSize: 12 }}>

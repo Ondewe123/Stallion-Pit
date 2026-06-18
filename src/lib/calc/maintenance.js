@@ -39,6 +39,21 @@ export function evaluate(item, currentOdo, opts = {}) {
   return { remKm, remDays, status }
 }
 
+const STATUS_RANK = { overdue: 0, soon: 1, ok: 2 }
+
+// Comparator for *evaluated* items (those carrying { status, remKm, remDays, priority }):
+// overdue first, then due-soon, then by priority (1→4), then by smallest remaining km/days.
+// Surfaces safety-critical, soonest work at the top.
+export function byPriorityThenUrgency(a, b) {
+  const sr = (STATUS_RANK[a.status] ?? 3) - (STATUS_RANK[b.status] ?? 3)
+  if (sr) return sr
+  const pa = a.priority ?? 3, pb = b.priority ?? 3
+  if (pa !== pb) return pa - pb
+  const ka = a.remKm ?? Infinity, kb = b.remKm ?? Infinity
+  if (ka !== kb) return ka - kb
+  return (a.remDays ?? Infinity) - (b.remDays ?? Infinity)
+}
+
 // Fill in next_due_odometer / next_due_date from last-done + interval when they
 // were left blank. Returns a new object; does not mutate the input.
 export function computeNextDue(out) {

@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { path: '/service',     label: 'Service',   short: 'Service',  icon: '🔧' },
   { path: '/parts',       label: 'Parts',     short: 'Parts',    icon: '📦' },
   { path: '/maintenance', label: 'Schedule',  short: 'Schedule', icon: '📅' },
+  { path: '/templates',   label: 'Templates', short: 'Tpl',      icon: '📋', desktopOnly: true },
   { path: '/snags',       label: 'Snags',     short: 'Snags',    icon: '⚠️'  },
   { path: '/analysis',    label: 'Analysis',  short: 'Stats',    icon: '📊' },
 ]
@@ -75,7 +76,7 @@ export default function Layout() {
 
       {/* Mobile bottom tab bar */}
       <nav className="mobile-bottomnav">
-        {NAV_ITEMS.map(item => (
+        {NAV_ITEMS.filter(item => !item.desktopOnly).map(item => (
           <NavLink key={item.path} to={item.path} end={item.path === '/'}
             className={({ isActive }) => `nav-item ${isActive ? 'nav-item-active' : ''}`}>
             <span className="nav-icon">{item.icon}</span>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { daysUntil, addMonths, evaluate, computeNextDue, DUE_SOON_KM, DUE_SOON_DAYS } from './maintenance'
+import { daysUntil, addMonths, evaluate, computeNextDue, byPriorityThenUrgency, DUE_SOON_KM, DUE_SOON_DAYS } from './maintenance'
 
 const NOW = new Date('2026-06-18T12:00:00') // fixed "today" for deterministic tests
 
@@ -89,5 +89,45 @@ describe('computeNextDue', () => {
     const input = { last_done_odometer: 100000, distance_interval_km: 8000, next_due_odometer: null, next_due_date: null }
     computeNextDue(input)
     expect(input.next_due_odometer).toBeNull()
+  })
+})
+
+describe('byPriorityThenUrgency', () => {
+  const sorted = (arr) => [...arr].sort(byPriorityThenUrgency).map(x => x.k)
+
+  it('orders overdue before soon before ok', () => {
+    const items = [
+      { k: 'ok', status: 'ok', priority: 1 },
+      { k: 'soon', status: 'soon', priority: 4 },
+      { k: 'overdue', status: 'overdue', priority: 4 },
+    ]
+    expect(sorted(items)).toEqual(['overdue', 'soon', 'ok'])
+  })
+
+  it('within the same status, lower priority number wins', () => {
+    const items = [
+      { k: 'p3', status: 'soon', priority: 3 },
+      { k: 'p1', status: 'soon', priority: 1 },
+      { k: 'p2', status: 'soon', priority: 2 },
+    ]
+    expect(sorted(items)).toEqual(['p1', 'p2', 'p3'])
+  })
+
+  it('within the same status and priority, smaller remaining km wins (nulls last)', () => {
+    const items = [
+      { k: 'far', status: 'soon', priority: 2, remKm: 800 },
+      { k: 'near', status: 'soon', priority: 2, remKm: 100 },
+      { k: 'none', status: 'soon', priority: 2, remKm: null, remDays: 5 },
+    ]
+    expect(sorted(items)).toEqual(['near', 'far', 'none'])
+  })
+
+  it('defaults missing priority to 3', () => {
+    const items = [
+      { k: 'p4', status: 'ok', priority: 4 },
+      { k: 'default', status: 'ok' },
+      { k: 'p1', status: 'ok', priority: 1 },
+    ]
+    expect(sorted(items)).toEqual(['p1', 'default', 'p4'])
   })
 })
