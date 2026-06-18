@@ -63,18 +63,25 @@ export async function submitReport({ type, comment, screenshotBlob, userId, cont
 
   onStep?.('insert')
 
-  const { error } = await client.from('feedback_reports').insert([
-    {
-      id,
-      type,
-      comment: comment || null,
-      screenshot_path,
-      breadcrumbs: breadcrumbs ?? [],
-      context: context ?? {},
-      page_url: context?.url ?? null,
-    },
-  ])
-  return { error: error ? error.message : null }
+  // Bound the insert too: submit must ALWAYS resolve, never spin forever. If the
+  // DB write stalls (offline, dropped connection) we surface an error after 15s.
+  const ins = await withTimeout(
+    client.from('feedback_reports').insert([
+      {
+        id,
+        type,
+        comment: comment || null,
+        screenshot_path,
+        breadcrumbs: breadcrumbs ?? [],
+        context: context ?? {},
+        page_url: context?.url ?? null,
+      },
+    ]),
+    15000,
+  )
+  if (ins.timedOut) return { error: 'Saving timed out — check your connection and try again.' }
+  const error = ins.value?.error ?? ins.error
+  return { error: error ? error.message || String(error) : null }
 }
 
 export async function listReports(filter = 'open', client = supabase) {
