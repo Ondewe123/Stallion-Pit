@@ -10,6 +10,13 @@ const ACTIVE_STATUSES = ['Open', 'In Progress']
 const SEVERITY_BADGE = { Critical: 'badge-red', High: 'badge-amber', Medium: 'badge-gold', Low: 'badge' }
 const STATUS_BADGE = { Open: 'badge-amber', 'In Progress': 'badge-gold', Resolved: 'badge-green', "Won't Fix": 'badge' }
 
+const SAFETY_IMPACTS = ['None', 'Cosmetic', 'Affects safety', 'Unsafe to drive']
+const DRIVABILITY = ['None', 'Minor', 'Noticeable', 'Severe']
+const SYSTEMS = ['Engine', 'Cooling', 'Fuel', 'Transmission', 'Brakes', 'Suspension', 'Steering', 'Electrical', 'HVAC', 'Body', 'Tyres', 'Exhaust', 'Other']
+const CONDITIONS = ['Cold start', 'When hot', 'At idle', 'Under load', 'Accelerating', 'Braking', 'Cornering', 'Over bumps', 'In rain', 'Highway', 'Always']
+const SAFETY_BADGE = { 'Unsafe to drive': 'badge-red', 'Affects safety': 'badge-amber' }
+const SAFETY_CRITICAL = ['Affects safety', 'Unsafe to drive']
+
 const EMPTY_FORM = {
   reported_at: new Date().toISOString().split('T')[0],
   title: '',
@@ -17,14 +24,31 @@ const EMPTY_FORM = {
   severity: 'Medium',
   status: 'Open',
   odometer_km: '',
+  symptom: '',
+  conditions: [],
+  safety_impact: '',
+  drivability_impact: '',
+  suspected_system: '',
+  root_cause: '',
+  corrective_action: '',
+  verification_method: '',
+  is_recurring: false,
   resolved_at: '',
   resolution_note: '',
   notes: '',
 }
 
 function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer }) {
-  const [form, setForm] = useState({ ...EMPTY_FORM, ...initial })
+  const [form, setForm] = useState({ ...EMPTY_FORM, ...initial, conditions: initial.conditions || [] })
   const set = (field, value) => setForm(f => ({ ...f, [field]: value }))
+  const toggleCondition = (c) => setForm(f => {
+    const has = (f.conditions || []).includes(c)
+    return { ...f, conditions: has ? f.conditions.filter(x => x !== c) : [...(f.conditions || []), c] }
+  })
+  const [showDiag, setShowDiag] = useState(() =>
+    !!(initial.symptom || initial.safety_impact || initial.suspected_system || initial.root_cause ||
+      initial.corrective_action || initial.verification_method || initial.is_recurring ||
+      (initial.conditions && initial.conditions.length)))
 
   const handleSubmit = (e) => { e.preventDefault(); onSave(form) }
 
@@ -71,6 +95,81 @@ function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
           placeholder="What's wrong — symptoms, when it happens..." rows={2}
           style={{ resize: 'vertical' }} />
       </div>
+
+      <button type="button" className="row-btn" style={{ marginBottom: 12 }} onClick={() => setShowDiag(s => !s)}>
+        {showDiag ? '▾' : '▸'} Diagnosis &amp; rectification
+      </button>
+
+      {showDiag && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="form-group">
+            <label>Symptom</label>
+            <input value={form.symptom || ''} onChange={e => set('symptom', e.target.value)}
+              placeholder="e.g. Misfire / rough running, stalls" />
+          </div>
+
+          <div className="form-group">
+            <label>Conditions (when it happens)</label>
+            <div className="row-actions" style={{ flexWrap: 'wrap', gap: 6 }}>
+              {CONDITIONS.map(c => (
+                <button type="button" key={c}
+                  className={`row-btn ${(form.conditions || []).includes(c) ? 'vehicle-tab-active' : ''}`}
+                  onClick={() => toggleCondition(c)}>
+                  {(form.conditions || []).includes(c) ? '✓ ' : ''}{c}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="form-row-2">
+            <div className="form-group">
+              <label>Suspected system</label>
+              <select value={form.suspected_system || ''} onChange={e => set('suspected_system', e.target.value)}>
+                <option value="">—</option>
+                {SYSTEMS.map(s => <option key={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Safety impact</label>
+              <select value={form.safety_impact || ''} onChange={e => set('safety_impact', e.target.value)}>
+                <option value="">—</option>
+                {SAFETY_IMPACTS.map(s => <option key={s}>{s}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="form-row-2">
+            <div className="form-group">
+              <label>Drivability impact</label>
+              <select value={form.drivability_impact || ''} onChange={e => set('drivability_impact', e.target.value)}>
+                <option value="">—</option>
+                {DRIVABILITY.map(s => <option key={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 24 }}>
+              <input type="checkbox" id="is_recurring" checked={!!form.is_recurring}
+                onChange={e => set('is_recurring', e.target.checked)} style={{ width: 'auto' }} />
+              <label htmlFor="is_recurring" style={{ margin: 0 }}>Recurring issue (has come back before)</label>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Root cause</label>
+            <textarea value={form.root_cause || ''} onChange={e => set('root_cause', e.target.value)}
+              placeholder="What actually caused it..." rows={2} style={{ resize: 'vertical' }} />
+          </div>
+          <div className="form-group">
+            <label>Corrective action</label>
+            <textarea value={form.corrective_action || ''} onChange={e => set('corrective_action', e.target.value)}
+              placeholder="What was done to fix it..." rows={2} style={{ resize: 'vertical' }} />
+          </div>
+          <div className="form-group">
+            <label>Verification method</label>
+            <input value={form.verification_method || ''} onChange={e => set('verification_method', e.target.value)}
+              placeholder="How you confirmed it's fixed (test drive, re-scan...)" />
+          </div>
+        </div>
+      )}
 
       <div className="form-row-2">
         <div className="form-group">
@@ -132,6 +231,7 @@ export default function Snags() {
   const clean = (form) => {
     const out = { ...form }
     Object.keys(out).forEach(k => { if (out[k] === '') out[k] = null })
+    if (Array.isArray(out.conditions) && out.conditions.length === 0) out.conditions = null
     out.vehicle_id = activeVehicle.id
     return out
   }
@@ -168,6 +268,8 @@ export default function Snags() {
   const needsAttention = logs.filter(s =>
     ACTIVE_STATUSES.includes(s.status) && (s.severity === 'High' || s.severity === 'Critical')).length
   const resolvedCount = logs.filter(s => s.status === 'Resolved').length
+  const safetyCritical = logs.filter(s =>
+    ACTIVE_STATUSES.includes(s.status) && SAFETY_CRITICAL.includes(s.safety_impact)).length
   const currentOdo = logs.reduce((max, l) => Math.max(max, Number(l.odometer_km || 0)), 0)
   const lastOdometer = currentOdo || null
 
@@ -201,6 +303,8 @@ export default function Snags() {
           ...selected,
           reported_at: selected.reported_at?.split('T')[0] || selected.reported_at,
           resolved_at: selected.resolved_at?.split('T')[0] || selected.resolved_at || '',
+          conditions: selected.conditions || [],
+          is_recurring: selected.is_recurring ?? false,
         }}
         onSave={handleEdit}
         onCancel={() => setView('list')}
@@ -234,6 +338,11 @@ export default function Snags() {
             <div className="card-label">Needs Attention</div>
             <div className="card-value" style={{ color: needsAttention ? '#e74c3c' : undefined }}>{needsAttention}</div>
             <div className="card-sub">High / Critical &amp; open</div>
+          </div>
+          <div className="card">
+            <div className="card-label">Safety-critical</div>
+            <div className="card-value" style={{ color: safetyCritical ? '#e74c3c' : undefined }}>{safetyCritical}</div>
+            <div className="card-sub">affects safety &amp; open</div>
           </div>
           <div className="card">
             <div className="card-label">Resolved</div>
@@ -273,12 +382,22 @@ export default function Snags() {
                 <tr key={log.id}>
                   <td className="mono">{log.reported_at}</td>
                   <td className="primary">
-                    {log.title}
+                    {log.title} {log.is_recurring && <span title="Recurring issue" style={{ color: '#e67e22' }}>↻</span>}
+                    {(log.suspected_system || (log.conditions && log.conditions.length > 0)) && (
+                      <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>
+                        {[log.suspected_system, (log.conditions || []).join(', ')].filter(Boolean).join(' · ')}
+                      </div>
+                    )}
                     {log.resolved_at && (
                       <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>resolved {log.resolved_at}</div>
                     )}
                   </td>
-                  <td><span className={`badge ${SEVERITY_BADGE[log.severity] || 'badge'}`}>{log.severity}</span></td>
+                  <td>
+                    <span className={`badge ${SEVERITY_BADGE[log.severity] || 'badge'}`}>{log.severity}</span>
+                    {SAFETY_BADGE[log.safety_impact] && (
+                      <div style={{ marginTop: 4 }}><span className={`badge ${SAFETY_BADGE[log.safety_impact]}`}>{log.safety_impact}</span></div>
+                    )}
+                  </td>
                   <td><span className={`badge ${STATUS_BADGE[log.status] || 'badge'}`}>{log.status}</span></td>
                   <td className="mono">{log.odometer_km ? Number(log.odometer_km).toLocaleString() : '—'}</td>
                   <td>
