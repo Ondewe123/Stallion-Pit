@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { record } from '../lib/feedback/breadcrumbs'
+import FeedbackButton from './Feedback/FeedbackButton'
 import VehicleSelector from './VehicleSelector'
 
 const NAV_ITEMS = [
@@ -92,6 +93,8 @@ export default function Layout() {
           </NavLink>
         ))}
       </nav>
+
+      <FeedbackButton />
     </div>
   )
 }
