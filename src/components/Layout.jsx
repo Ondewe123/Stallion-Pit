@@ -1,6 +1,7 @@
-import { useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { record } from '../lib/feedback/breadcrumbs'
 import VehicleSelector from './VehicleSelector'
 
 const NAV_ITEMS = [
@@ -11,7 +12,7 @@ const NAV_ITEMS = [
   { path: '/parts',       label: 'Parts',     short: 'Parts',    icon: '📦' },
   { path: '/maintenance', label: 'Schedule',  short: 'Schedule', icon: '📅' },
   { path: '/templates',   label: 'Templates', short: 'Tpl',      icon: '📋', desktopOnly: true },
-  { path: '/work-orders', label: 'Work Orders', short: 'Jobs',   icon: '🛠', desktopOnly: true },
+  { path: '/work-orders', label: 'Work Orders', short: 'Jobs',   icon: '🛠️', desktopOnly: true },
   { path: '/snags',       label: 'Snags',     short: 'Snags',    icon: '⚠️'  },
   { path: '/dtc',         label: 'DTC Log',   short: 'DTC',      icon: '🩺', desktopOnly: true },
   { path: '/analysis',    label: 'Analysis',  short: 'Stats',    icon: '📊' },
@@ -20,7 +21,12 @@ const NAV_ITEMS = [
 export default function Layout() {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [collapsed, setCollapsed] = useState(false)
+
+  useEffect(() => {
+    record({ kind: 'nav', route: location.pathname })
+  }, [location.pathname])
 
   const handleSignOut = async () => {
     await signOut()
