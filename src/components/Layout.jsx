@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { path: '/parts',       label: 'Parts',     short: 'Parts',    icon: '📦' },
   { path: '/maintenance', label: 'Schedule',  short: 'Schedule', icon: '📅' },
   { path: '/templates',   label: 'Templates', short: 'Tpl',      icon: '📋', desktopOnly: true },
+  { path: '/work-orders', label: 'Work Orders', short: 'Jobs',   icon: '🛠', desktopOnly: true },
   { path: '/snags',       label: 'Snags',     short: 'Snags',    icon: '⚠️'  },
   { path: '/analysis',    label: 'Analysis',  short: 'Stats',    icon: '📊' },
 ]

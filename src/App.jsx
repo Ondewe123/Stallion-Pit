@@ -10,6 +10,7 @@ import ServiceLog from './pages/ServiceLog'
 import PartsLog from './pages/PartsLog'
 import Maintenance from './pages/Maintenance'
 import Templates from './pages/Templates'
+import WorkOrders from './pages/WorkOrders'
 import Snags from './pages/Snags'
 import Analysis from './pages/Analysis'
 
@@ -43,6 +44,7 @@ function AppRoutes() {
         <Route path="parts" element={<PartsLog />} />
         <Route path="maintenance" element={<Maintenance />} />
         <Route path="templates" element={<Templates />} />
+        <Route path="work-orders" element={<WorkOrders />} />
         <Route path="snags" element={<Snags />} />
         <Route path="analysis" element={<Analysis />} />
       </Route>

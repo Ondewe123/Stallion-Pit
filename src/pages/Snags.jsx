@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
 
@@ -105,6 +106,7 @@ function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
 
 export default function Snags() {
   const { activeVehicle } = useVehicle()
+  const navigate = useNavigate()
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState('list')   // list | add | edit
@@ -283,6 +285,9 @@ export default function Snags() {
                     <div className="row-actions">
                       {ACTIVE_STATUSES.includes(log.status) && (
                         <button className="row-btn" onClick={() => handleMarkFixed(log)}>Fix</button>
+                      )}
+                      {ACTIVE_STATUSES.includes(log.status) && (
+                        <button className="row-btn" onClick={() => navigate('/work-orders', { state: { newFromSnag: { id: log.id, title: log.title } } })}>→ Job</button>
                       )}
                       <button className="row-btn" onClick={() => { setSelected(log); setView('edit') }}>Edit</button>
                       {deleteConfirm === log.id ? (
