@@ -1,5 +1,24 @@
 import { describe, it, expect, vi } from 'vitest'
-import { buildContext, statusPatch, withTimeout } from './reports'
+import { buildContext, statusPatch, withTimeout, newId } from './reports'
+
+describe('newId', () => {
+  it('returns a v4-shaped uuid', () => {
+    expect(newId()).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+  })
+
+  it('falls back without crypto.randomUUID (older iOS)', () => {
+    const spy = vi.spyOn(globalThis, 'crypto', 'get').mockReturnValue(undefined)
+    try {
+      expect(newId()).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('generates distinct ids', () => {
+    expect(newId()).not.toBe(newId())
+  })
+})
 
 describe('withTimeout', () => {
   it('resolves with the value when the promise settles first', async () => {

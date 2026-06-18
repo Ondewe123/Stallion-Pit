@@ -10,9 +10,30 @@ function gitCommit() {
   }
 }
 
+// Dev-only: stop devices (iPad/Infinix) serving STALE cached JS, and log every
+// request with its device type so we can see what each device actually loads.
+function devDiagnostics() {
+  return {
+    name: 'dev-diagnostics',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        res.setHeader('Cache-Control', 'no-store, max-age=0')
+        const ua = req.headers['user-agent'] || ''
+        const device = /iPad|iPhone|iPod/.test(ua) ? 'iOS' : /Android/.test(ua) ? 'Android' : 'desktop'
+        const url = req.url || ''
+        // skip noisy internal/HMR/dependency traffic; log app navigations + chunks
+        if (!url.includes('/@vite') && !url.includes('/@react') && !url.includes('/node_modules/')) {
+          console.log(`[req] ${device.padEnd(7)} ${req.method} ${url}`)
+        }
+        next()
+      })
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), devDiagnostics()],
   define: {
     __APP_VERSION__: JSON.stringify(gitCommit()),
   },

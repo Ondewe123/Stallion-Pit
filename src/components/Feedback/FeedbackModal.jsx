@@ -65,31 +65,38 @@ export default function FeedbackModal({ onClose }) {
     e.preventDefault()
     setSaving(true)
     setError(null)
-    const context = buildContext({
-      user,
-      activeVehicle,
-      href: window.location.href,
-      route: location.pathname,
-      viewport: { w: window.innerWidth, h: window.innerHeight },
-      appVersion: APP_VERSION,
-    })
-    const { error: err } = await submitReport({
-      type,
-      comment,
-      screenshotBlob: frozen.current.blob,
-      userId: user?.id,
-      context,
-      breadcrumbs: frozen.current.breadcrumbs,
-      onStep: setStep,
-    })
-    setSaving(false)
-    setStep(null)
-    if (err) {
-      setError(err)
-      return
+    try {
+      const context = buildContext({
+        user,
+        activeVehicle,
+        href: window.location.href,
+        route: location.pathname,
+        viewport: { w: window.innerWidth, h: window.innerHeight },
+        appVersion: APP_VERSION,
+      })
+      const { error: err } = await submitReport({
+        type,
+        comment,
+        screenshotBlob: frozen.current.blob,
+        userId: user?.id,
+        context,
+        breadcrumbs: frozen.current.breadcrumbs,
+        onStep: setStep,
+      })
+      if (err) {
+        setError(err)
+        return
+      }
+      setDone(true)
+      setTimeout(onClose, 900)
+    } catch (ex) {
+      // ANY error (e.g. an unsupported browser API) must surface, never freeze
+      // the button on "Saving…". This guard is the backstop for that guarantee.
+      setError(ex?.message || 'Something went wrong saving the report.')
+    } finally {
+      setSaving(false)
+      setStep(null)
     }
-    setDone(true)
-    setTimeout(onClose, 900)
   }
 
   return (

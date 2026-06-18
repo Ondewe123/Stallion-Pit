@@ -40,8 +40,23 @@ export function statusPatch(status, now = () => new Date().toISOString()) {
   return { status, resolved_at: status === 'resolved' ? now() : null }
 }
 
+// crypto.randomUUID() doesn't exist on older iOS Safari (< 15.4). Fall back to a
+// plain RFC4122-ish v4 id so submit never throws on those devices.
+export function newId() {
+  try {
+    if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID()
+  } catch {
+    /* fall through to the manual generator */
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
+
 export async function submitReport({ type, comment, screenshotBlob, userId, context, breadcrumbs, client = supabase, onStep }) {
-  const id = crypto.randomUUID()
+  const id = newId()
   let screenshot_path = null
 
   if (screenshotBlob && userId) {
