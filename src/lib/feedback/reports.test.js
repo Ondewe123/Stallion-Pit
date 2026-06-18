@@ -1,5 +1,31 @@
-import { describe, it, expect } from 'vitest'
-import { buildContext, statusPatch } from './reports'
+import { describe, it, expect, vi } from 'vitest'
+import { buildContext, statusPatch, withTimeout } from './reports'
+
+describe('withTimeout', () => {
+  it('resolves with the value when the promise settles first', async () => {
+    const r = await withTimeout(Promise.resolve('ok'), 1000)
+    expect(r).toEqual({ timedOut: false, value: 'ok' })
+  })
+
+  it('flags timedOut when the timer wins (promise never settles)', async () => {
+    vi.useFakeTimers()
+    try {
+      const never = new Promise(() => {})
+      const p = withTimeout(never, 5000)
+      await vi.advanceTimersByTimeAsync(5000)
+      const r = await p
+      expect(r.timedOut).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('captures a rejection without throwing', async () => {
+    const r = await withTimeout(Promise.reject(new Error('boom')), 1000)
+    expect(r.timedOut).toBe(false)
+    expect(r.error).toBeInstanceOf(Error)
+  })
+})
 
 describe('buildContext', () => {
   it('shapes the context snapshot from injected values', () => {

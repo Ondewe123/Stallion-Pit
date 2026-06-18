@@ -1,6 +1,28 @@
 import { supabase } from '../supabase'
+import { record } from './breadcrumbs'
 
 const BUCKET = 'feedback-screenshots'
+
+// Race a promise against a timer so a slow/hanging async step can't block the
+// flow. Never rejects: returns { timedOut, value, error }. Used to keep the
+// screenshot pipeline best-effort (see the feedback design spec §7).
+export function withTimeout(promise, ms) {
+  return new Promise((resolve) => {
+    let settled = false
+    let timer
+    const done = (result) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      resolve(result)
+    }
+    timer = setTimeout(() => done({ timedOut: true }), ms)
+    Promise.resolve(promise).then(
+      (value) => done({ timedOut: false, value }),
+      (error) => done({ timedOut: false, error }),
+    )
+  })
+}
 
 export function buildContext({ user, activeVehicle, href, route, viewport, appVersion }) {
   return {
@@ -18,18 +40,28 @@ export function statusPatch(status, now = () => new Date().toISOString()) {
   return { status, resolved_at: status === 'resolved' ? now() : null }
 }
 
-export async function submitReport({ type, comment, screenshotBlob, userId, context, breadcrumbs, client = supabase }) {
+export async function submitReport({ type, comment, screenshotBlob, userId, context, breadcrumbs, client = supabase, onStep }) {
   const id = crypto.randomUUID()
   let screenshot_path = null
 
   if (screenshotBlob && userId) {
+    onStep?.('screenshot')
     const path = `${userId}/${id}.png`
-    const { error: upErr } = await client.storage
-      .from(BUCKET)
-      .upload(path, screenshotBlob, { contentType: 'image/png', upsert: true })
-    if (!upErr) screenshot_path = path
-    // a failed screenshot upload is non-fatal: still save the report
+    // Bound the upload: on a slow device/connection a hanging Storage call must
+    // never freeze the report. After 12s we give up and save without the image.
+    const up = await withTimeout(
+      client.storage.from(BUCKET).upload(path, screenshotBlob, { contentType: 'image/png', upsert: true }),
+      12000,
+    )
+    if (up.timedOut) {
+      record({ kind: 'feedback', message: 'screenshot upload timed out (12s) — report saved without image' })
+    } else if (!up.value?.error) {
+      screenshot_path = path
+    }
+    // a failed/slow screenshot upload is non-fatal: still save the report
   }
+
+  onStep?.('insert')
 
   const { error } = await client.from('feedback_reports').insert([
     {

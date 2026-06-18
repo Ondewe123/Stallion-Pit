@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useVehicle } from '../../contexts/VehicleContext'
 import { useLocation } from 'react-router-dom'
 import { snapshot } from '../../lib/feedback/breadcrumbs'
-import { buildContext, submitReport } from '../../lib/feedback/reports'
+import { buildContext, submitReport, withTimeout } from '../../lib/feedback/reports'
 
 const TYPES = [
   { key: 'bug', label: '🐞 Bug' },
@@ -20,6 +20,7 @@ export default function FeedbackModal({ onClose }) {
   const [comment, setComment] = useState('')
   const [preview, setPreview] = useState(null) // data URL
   const [saving, setSaving] = useState(false)
+  const [step, setStep] = useState(null)
   const [error, setError] = useState(null)
   const [done, setDone] = useState(false)
 
@@ -31,8 +32,18 @@ export default function FeedbackModal({ onClose }) {
     ;(async () => {
       try {
         const { default: html2canvas } = await import('html2canvas')
-        const canvas = await html2canvas(document.body, { logging: false, useCORS: true })
+        // scale 0.6 keeps the capture cheap on weaker devices (tablets/phones)
+        // and the PNG small to upload; bounded so a slow render can't hang us.
+        const cap = await withTimeout(
+          html2canvas(document.body, { logging: false, useCORS: true, scale: 0.6 }),
+          8000,
+        )
         if (cancelled) return
+        if (cap.timedOut || !cap.value) {
+          setPreview(null)
+          return
+        }
+        const canvas = cap.value
         setPreview(canvas.toDataURL('image/png'))
         canvas.toBlob((b) => {
           frozen.current.blob = b
@@ -66,8 +77,10 @@ export default function FeedbackModal({ onClose }) {
       userId: user?.id,
       context,
       breadcrumbs: frozen.current.breadcrumbs,
+      onStep: setStep,
     })
     setSaving(false)
+    setStep(null)
     if (err) {
       setError(err)
       return
@@ -126,7 +139,13 @@ export default function FeedbackModal({ onClose }) {
                 Cancel
               </button>
               <button type="submit" className="btn-primary" style={{ width: 'auto', padding: '10px 28px' }} disabled={saving}>
-                {saving ? 'Saving…' : 'Submit'}
+                {saving
+                  ? step === 'screenshot'
+                    ? 'Uploading screenshot…'
+                    : step === 'insert'
+                      ? 'Saving report…'
+                      : 'Saving…'
+                  : 'Submit'}
               </button>
             </div>
           </form>
