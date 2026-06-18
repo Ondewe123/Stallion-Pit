@@ -861,5 +861,9 @@ input::placeholder { color: var(--text-dim); }
 .fb-comment { width: 100%; box-sizing: border-box; resize: vertical; margin-bottom: 14px; }
 .fb-preview { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 14px; min-height: 90px; display: flex; align-items: center; justify-content: center; }
 .fb-preview img { width: 100%; display: block; }
-.fb-preview-empty { color: var(--text-dim); font-size: 13px; padding: 30px 0; }
+.fb-shot-btn { width: 100%; box-sizing: border-box; padding: 10px; margin-bottom: 8px; border-radius: 8px; border: 1px dashed var(--muted); background: transparent; color: var(--text-mid); cursor: pointer; }
+.fb-shot-btn:hover:not(:disabled) { border-color: var(--gold-dim); color: var(--text); }
+.fb-shot-btn:disabled { opacity: 0.6; cursor: default; }
+.fb-shot-note { font-size: 12px; color: var(--amber); margin-bottom: 12px; }
 .fb-done { padding: 28px; text-align: center; font-size: 16px; color: var(--green); }
+.fb-version { margin-top: 12px; text-align: right; font-size: 10px; color: var(--text-dim); font-family: 'DM Mono', monospace; }

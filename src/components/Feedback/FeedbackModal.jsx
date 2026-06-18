@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useVehicle } from '../../contexts/VehicleContext'
 import { useLocation } from 'react-router-dom'
@@ -11,6 +11,8 @@ const TYPES = [
   { key: 'idea', label: '💡 Idea' },
 ]
 
+const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'
+
 export default function FeedbackModal({ onClose }) {
   const { user } = useAuth()
   const { activeVehicle } = useVehicle()
@@ -19,44 +21,45 @@ export default function FeedbackModal({ onClose }) {
   const [type, setType] = useState('bug')
   const [comment, setComment] = useState('')
   const [preview, setPreview] = useState(null) // data URL
+  const [capturing, setCapturing] = useState(false)
+  const [shotNote, setShotNote] = useState(null)
   const [saving, setSaving] = useState(false)
   const [step, setStep] = useState(null)
   const [error, setError] = useState(null)
   const [done, setDone] = useState(false)
 
   // Frozen at open time so the report reflects "what I was just doing".
+  // NOTE: the screenshot is opt-in (button below). html2canvas hogs the main
+  // thread and freezes iOS WebKit (iPad), so it must NEVER run automatically or
+  // gate Submit — the comment + breadcrumb log are the real debugging value and
+  // always save instantly.
   const frozen = useRef({ breadcrumbs: snapshot(), blob: null })
 
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const { default: html2canvas } = await import('html2canvas')
-        // scale 0.6 keeps the capture cheap on weaker devices (tablets/phones)
-        // and the PNG small to upload; bounded so a slow render can't hang us.
-        const cap = await withTimeout(
-          html2canvas(document.body, { logging: false, useCORS: true, scale: 0.6 }),
-          8000,
-        )
-        if (cancelled) return
-        if (cap.timedOut || !cap.value) {
-          setPreview(null)
-          return
-        }
-        const canvas = cap.value
-        setPreview(canvas.toDataURL('image/png'))
-        canvas.toBlob((b) => {
-          frozen.current.blob = b
-        }, 'image/png')
-      } catch {
-        // screenshot is best-effort; report can still be submitted without one
-        if (!cancelled) setPreview(null)
+  const captureScreenshot = async () => {
+    setCapturing(true)
+    setShotNote(null)
+    try {
+      const { default: html2canvas } = await import('html2canvas')
+      // scale 0.5 keeps the capture as cheap as possible on weak devices.
+      const cap = await withTimeout(
+        html2canvas(document.body, { logging: false, useCORS: true, scale: 0.5 }),
+        8000,
+      )
+      if (cap.timedOut || !cap.value) {
+        setShotNote('Screenshot timed out on this device — submit without it.')
+        setCapturing(false)
+        return
       }
-    })()
-    return () => {
-      cancelled = true
+      const canvas = cap.value
+      setPreview(canvas.toDataURL('image/png'))
+      canvas.toBlob((b) => {
+        frozen.current.blob = b
+      }, 'image/png')
+    } catch {
+      setShotNote('Screenshot not supported on this device — submit without it.')
     }
-  }, [])
+    setCapturing(false)
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -68,7 +71,7 @@ export default function FeedbackModal({ onClose }) {
       href: window.location.href,
       route: location.pathname,
       viewport: { w: window.innerWidth, h: window.innerHeight },
-      appVersion: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev',
+      appVersion: APP_VERSION,
     })
     const { error: err } = await submitReport({
       type,
@@ -124,13 +127,16 @@ export default function FeedbackModal({ onClose }) {
               autoFocus
             />
 
-            <div className="fb-preview">
-              {preview ? (
+            {preview ? (
+              <div className="fb-preview">
                 <img src={preview} alt="screenshot preview" />
-              ) : (
-                <span className="fb-preview-empty">Capturing screenshot…</span>
-              )}
-            </div>
+              </div>
+            ) : (
+              <button type="button" className="fb-shot-btn" onClick={captureScreenshot} disabled={capturing || saving}>
+                {capturing ? 'Capturing…' : '📷 Attach screenshot (optional)'}
+              </button>
+            )}
+            {shotNote && <div className="fb-shot-note">{shotNote}</div>}
 
             {error && <div className="form-error">{error}</div>}
 
@@ -139,15 +145,11 @@ export default function FeedbackModal({ onClose }) {
                 Cancel
               </button>
               <button type="submit" className="btn-primary" style={{ width: 'auto', padding: '10px 28px' }} disabled={saving}>
-                {saving
-                  ? step === 'screenshot'
-                    ? 'Uploading screenshot…'
-                    : step === 'insert'
-                      ? 'Saving report…'
-                      : 'Saving…'
-                  : 'Submit'}
+                {saving ? (step === 'screenshot' ? 'Uploading screenshot…' : 'Saving report…') : 'Submit'}
               </button>
             </div>
+
+            <div className="fb-version">build {APP_VERSION}</div>
           </form>
         )}
       </div>
