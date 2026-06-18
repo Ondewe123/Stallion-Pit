@@ -5,10 +5,10 @@ import {
 } from 'recharts'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
+import { num, rolling } from '../lib/calc/consumption'
 
 const RANGES = [{ k: '3', mo: 3 }, { k: '6', mo: 6 }, { k: '12', mo: 12 }, { k: 'All', mo: null }]
 const round2 = (n) => Math.round(n * 100) / 100
-const num = (x) => Number(x || 0)
 
 const kes = (x) => x == null ? '—' : Math.round(num(x)).toLocaleString()
 const f1 = (x) => x == null ? '—' : num(x).toFixed(1)
@@ -18,18 +18,6 @@ const km = (x) => x == null ? '—' : Math.round(num(x)).toLocaleString()
 const AXIS = { fontSize: 11, fill: '#8a8a8a' }
 const GRID = '#2a2a2a'
 const TIP = { background: '#161616', border: '1px solid #333', borderRadius: 4, fontSize: 12 }
-
-// rolling corrected metric over the last K fills (partial-fill safe)
-function rolling(fuelAsc, K, valueFn) {
-  const pts = []
-  for (let i = K; i < fuelAsc.length; i++) {
-    const dist = num(fuelAsc[i].odometer_km) - num(fuelAsc[i - K].odometer_km)
-    let vol = 0, cost = 0
-    for (let j = i - K + 1; j <= i; j++) { vol += num(fuelAsc[j].volume_litres); cost += num(fuelAsc[j].total_cost_kes) }
-    if (dist > 0) { const v = valueFn(dist, vol, cost); if (v != null) pts.push({ date: fuelAsc[i].logged_at, value: v }) }
-  }
-  return pts
-}
 
 function Stat({ label, value, unit, sub }) {
   return (

@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
-
-const DUE_SOON_KM = 1000
-const DUE_SOON_DAYS = 30
+import { DUE_SOON_KM, DUE_SOON_DAYS, addMonths, evaluate, computeNextDue } from '../lib/calc/maintenance'
 
 const EMPTY_FORM = {
   item: '',
@@ -14,29 +12,6 @@ const EMPTY_FORM = {
   next_due_odometer: '',
   next_due_date: '',
   notes: '',
-}
-
-const daysUntil = (dateStr) => {
-  if (!dateStr) return null
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  const d = new Date(dateStr + 'T00:00:00')
-  return Math.round((d - today) / 86400000)
-}
-
-const addMonths = (dateStr, months) => {
-  const d = new Date(dateStr + 'T00:00:00')
-  d.setMonth(d.getMonth() + Math.round(Number(months)))
-  return d.toISOString().split('T')[0]
-}
-
-function evaluate(item, currentOdo) {
-  const remKm = item.next_due_odometer != null && currentOdo
-    ? Number(item.next_due_odometer) - currentOdo : null
-  const remDays = daysUntil(item.next_due_date)
-  let status = 'ok'
-  if ((remKm != null && remKm < 0) || (remDays != null && remDays < 0)) status = 'overdue'
-  else if ((remKm != null && remKm <= DUE_SOON_KM) || (remDays != null && remDays <= DUE_SOON_DAYS)) status = 'soon'
-  return { remKm, remDays, status }
 }
 
 const kmText = (remKm) => remKm == null ? null
@@ -152,11 +127,7 @@ export default function Maintenance() {
     const out = { ...form }
     Object.keys(out).forEach(k => { if (out[k] === '') out[k] = null })
     out.vehicle_id = activeVehicle.id
-    if (out.next_due_odometer == null && out.last_done_odometer != null && out.distance_interval_km != null)
-      out.next_due_odometer = Number(out.last_done_odometer) + Number(out.distance_interval_km)
-    if (out.next_due_date == null && out.last_done_date != null && out.time_interval_months != null)
-      out.next_due_date = addMonths(out.last_done_date, out.time_interval_months)
-    return out
+    return computeNextDue(out)
   }
 
   const handleAdd = async (form) => {

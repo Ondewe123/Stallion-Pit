@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
+import { correctedConsumption } from '../lib/calc/consumption'
 
 const EMPTY_FORM = {
   logged_at: new Date().toISOString().split('T')[0],
@@ -17,29 +18,13 @@ const EMPTY_FORM = {
   notes: '',
 }
 
-// Corrected L/100km using cumulative volume over cumulative distance
-// Works correctly with partial fill-ups
-function computeCorrectedConsumption(logs, windowSize) {
-  if (!logs || logs.length < 2) return null
-  const window = logs.slice(0, windowSize)
-  if (window.length < 2) return null
-
-  const totalVolume = window.reduce((sum, l) => sum + parseFloat(l.volume_litres || 0), 0)
-  const maxOdo = window[0].odometer_km
-  const minOdo = window[window.length - 1].odometer_km
-  const totalKm = maxOdo - minOdo
-
-  if (totalKm <= 0 || totalVolume <= 0) return null
-  return (totalVolume / totalKm) * 100
-}
-
 function ConsumptionBadge({ logs }) {
   const [window, setWindow] = useState(10)
   const windows = [5, 10, 20, 'All']
 
   const getConsumption = (w) => {
     const size = w === 'All' ? logs.length : w
-    return computeCorrectedConsumption(logs, size)
+    return correctedConsumption(logs, size)
   }
 
   const current = getConsumption(window)

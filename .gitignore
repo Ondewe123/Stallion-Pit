@@ -25,3 +25,6 @@ dist-ssr
 
 # aCar raw backup — large (embedded photo); parsed into db/seed_golden.sql
 Acar Old Records/
+
+# Local DB backups/exports (scripts/backup.mjs)
+backups/

@@ -2,35 +2,10 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
+import { evaluate as evalMaint } from '../lib/calc/maintenance'
+import { correctedConsumption as consumption } from '../lib/calc/consumption'
 
-const DUE_SOON_KM = 1000
-const DUE_SOON_DAYS = 30
 const kes = (n) => Number(n || 0).toLocaleString()
-
-const daysUntil = (dateStr) => {
-  if (!dateStr) return null
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  return Math.round((new Date(dateStr + 'T00:00:00') - today) / 86400000)
-}
-
-function evalMaint(item, currentOdo) {
-  const remKm = item.next_due_odometer != null && currentOdo ? Number(item.next_due_odometer) - currentOdo : null
-  const remDays = daysUntil(item.next_due_date)
-  let status = 'ok'
-  if ((remKm != null && remKm < 0) || (remDays != null && remDays < 0)) status = 'overdue'
-  else if ((remKm != null && remKm <= DUE_SOON_KM) || (remDays != null && remDays <= DUE_SOON_DAYS)) status = 'soon'
-  return { remKm, remDays, status }
-}
-
-// corrected L/100km over the most-recent n fills (descending by odometer)
-function consumption(fuelDesc, n) {
-  const w = fuelDesc.slice(0, n)
-  if (w.length < 2) return null
-  const vol = w.reduce((s, l) => s + Number(l.volume_litres || 0), 0)
-  const km = Number(w[0].odometer_km) - Number(w[w.length - 1].odometer_km)
-  if (km <= 0 || vol <= 0) return null
-  return (vol / km) * 100
-}
 
 const ACTIVE_SNAG = ['Open', 'In Progress']
 

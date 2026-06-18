@@ -14,6 +14,24 @@ const stableUuid = (s) =>
 
 const DIR = 'Acar Old Records/12th June 2026'
 
+// Owner of the seeded data. The seed file runs in the Supabase SQL editor, which has no
+// auth.uid(), so seed rows must be stamped explicitly. Override with SEED_OWNER_UID.
+const OWNER = process.env.SEED_OWNER_UID || '3563089a-faec-4143-8b6e-34fd7ca2d5ec'
+const DATA_TABLES = ['vehicles', 'fuel_logs', 'service_logs', 'parts', 'snags', 'maintenance_schedules']
+
+// Login for --apply / --maintenance. No secrets in source: read from env or CLI args.
+function getCreds() {
+  const arg = (flag) => { const i = process.argv.indexOf(flag); return i >= 0 ? process.argv[i + 1] : null }
+  const email = process.env.IMPORT_EMAIL || arg('--email')
+  const password = process.env.IMPORT_PASSWORD || arg('--password')
+  if (!email || !password) {
+    console.error('✗ Missing credentials. Set IMPORT_EMAIL and IMPORT_PASSWORD env vars,\n' +
+      '  or pass --email <email> --password <password>, to use --apply / --maintenance.')
+    process.exit(1)
+  }
+  return { email, password }
+}
+
 const decode = (s) => s
   .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
   .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
@@ -163,6 +181,9 @@ sql += '-- It truncates the data tables (auth/login is NOT touched) and re-inser
 sql += '-- ============================================================\n'
 sql += 'begin;\n'
 sql += 'truncate table public.snags, public.parts, public.maintenance_schedules, public.service_logs, public.fuel_logs, public.vehicles restart identity cascade;\n\n'
+sql += '-- RLS: the seed runs in the SQL editor (no auth.uid()), so temporarily default user_id to the owner.\n'
+for (const t of DATA_TABLES) sql += `alter table public.${t} alter column user_id set default '${OWNER}';\n`
+sql += '\n'
 
 const vCols = ['id', 'name', 'make', 'model', 'sub_model', 'year', 'engine_description',
   'transmission', 'drive_type', 'body_type', 'fuel_type', 'fuel_tank_capacity',
@@ -208,6 +229,8 @@ sql += `update public.fuel_logs f set km_since_last = o.kml from (
   select id, odometer_km - lag(odometer_km) over (partition by vehicle_id order by odometer_km) as kml
   from public.fuel_logs
 ) o where o.id = f.id;\n`
+sql += '\n-- restore the normal app default so live inserts stamp the logged-in user.\n'
+for (const t of DATA_TABLES) sql += `alter table public.${t} alter column user_id set default auth.uid();\n`
 sql += 'commit;\n'
 
 mkdirSync('db', { recursive: true })
@@ -231,7 +254,7 @@ if (process.argv.includes('--apply')) {
   const url = e.match(/VITE_SUPABASE_URL=(.+)/)[1].trim()
   const key = e.match(/VITE_SUPABASE_ANON_KEY=(.+)/)[1].trim()
   const sb = createClient(url, key)
-  const { error: aerr } = await sb.auth.signInWithPassword({ email: 'chris.odeny@gmail.com', password: 'Test123' })
+  const { error: aerr } = await sb.auth.signInWithPassword(getCreds())
   if (aerr) { console.error('✗ login failed:', aerr.message); process.exit(1) }
   console.log('[apply] logged in — clearing data tables...')
   for (const t of ['snags', 'parts', 'maintenance_schedules', 'service_logs', 'fuel_logs', 'vehicles']) {
@@ -270,7 +293,7 @@ if (process.argv.includes('--maintenance')) {
   const url = e.match(/VITE_SUPABASE_URL=(.+)/)[1].trim()
   const key = e.match(/VITE_SUPABASE_ANON_KEY=(.+)/)[1].trim()
   const sb = createClient(url, key)
-  const { error: aerr } = await sb.auth.signInWithPassword({ email: 'chris.odeny@gmail.com', password: 'Test123' })
+  const { error: aerr } = await sb.auth.signInWithPassword(getCreds())
   if (aerr) { console.error('✗ login failed:', aerr.message); process.exit(1) }
   const { data: live, error: lerr } = await sb.from('vehicles').select('id, make, model, year')
   if (lerr) { console.error('✗ fetch vehicles:', lerr.message); process.exit(1) }

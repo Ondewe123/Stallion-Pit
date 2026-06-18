@@ -6,6 +6,14 @@
 begin;
 truncate table public.snags, public.parts, public.maintenance_schedules, public.service_logs, public.fuel_logs, public.vehicles restart identity cascade;
 
+-- RLS: the seed runs in the SQL editor (no auth.uid()), so temporarily default user_id to the owner.
+alter table public.vehicles alter column user_id set default '3563089a-faec-4143-8b6e-34fd7ca2d5ec';
+alter table public.fuel_logs alter column user_id set default '3563089a-faec-4143-8b6e-34fd7ca2d5ec';
+alter table public.service_logs alter column user_id set default '3563089a-faec-4143-8b6e-34fd7ca2d5ec';
+alter table public.parts alter column user_id set default '3563089a-faec-4143-8b6e-34fd7ca2d5ec';
+alter table public.snags alter column user_id set default '3563089a-faec-4143-8b6e-34fd7ca2d5ec';
+alter table public.maintenance_schedules alter column user_id set default '3563089a-faec-4143-8b6e-34fd7ca2d5ec';
+
 insert into public.vehicles (id, name, make, model, sub_model, year, engine_description, transmission, drive_type, body_type, fuel_type, fuel_tank_capacity, purchase_date, purchase_price_kes, odometer_at_purchase, notes, is_active) values ('d7967f91-1dad-6aa7-82bb-a49a8a404d67', 'Mercedes', 'Mercedes-Benz', 'C180', 'Base', 1996, 'L4 GAS', 'Manual 5 Speed', 'RWD', 'Sedan', 'Petrol', null, '2021-07-29', 50000, 169635, 'Imported from aCar', true);
 insert into public.vehicles (id, name, make, model, sub_model, year, engine_description, transmission, drive_type, body_type, fuel_type, fuel_tank_capacity, purchase_date, purchase_price_kes, odometer_at_purchase, notes, is_active) values ('a20aad77-706a-7ad9-c165-8cfe00b43748', 'Polo', 'Volkswagen', 'Polo', '1.4 GT', 2004, null, null, null, null, 'Petrol', null, null, null, null, 'Imported from aCar', true);
 
@@ -450,4 +458,12 @@ update public.fuel_logs f set km_since_last = o.kml from (
   select id, odometer_km - lag(odometer_km) over (partition by vehicle_id order by odometer_km) as kml
   from public.fuel_logs
 ) o where o.id = f.id;
+
+-- restore the normal app default so live inserts stamp the logged-in user.
+alter table public.vehicles alter column user_id set default auth.uid();
+alter table public.fuel_logs alter column user_id set default auth.uid();
+alter table public.service_logs alter column user_id set default auth.uid();
+alter table public.parts alter column user_id set default auth.uid();
+alter table public.snags alter column user_id set default auth.uid();
+alter table public.maintenance_schedules alter column user_id set default auth.uid();
 commit;

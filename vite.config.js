@@ -11,4 +11,9 @@ export default defineConfig({
     // (which could collide with another Antigravity workspace's dev server).
     strictPort: true,
   },
+  test: {
+    // pure-function unit tests (src/lib/calc) — no DOM needed
+    environment: 'node',
+    include: ['src/**/*.test.{js,jsx}'],
+  },
 })
