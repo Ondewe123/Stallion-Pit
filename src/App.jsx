@@ -14,6 +14,7 @@ import WorkOrders from './pages/WorkOrders'
 import Snags from './pages/Snags'
 import Dtc from './pages/Dtc'
 import Analysis from './pages/Analysis'
+import Feedback from './pages/Feedback'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
@@ -49,6 +50,7 @@ function AppRoutes() {
         <Route path="snags" element={<Snags />} />
         <Route path="dtc" element={<Dtc />} />
         <Route path="analysis" element={<Analysis />} />
+        <Route path="feedback" element={<Feedback />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
