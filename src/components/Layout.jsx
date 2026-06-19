@@ -22,11 +22,14 @@ const NAV_ITEMS = [
   { path: '/feedback',    label: 'Feedback',  short: 'Bugs',     icon: '🐞', desktopOnly: true },
 ]
 
+const MORE_ITEMS = NAV_ITEMS.filter(i => i.desktopOnly)
+
 export default function Layout() {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [collapsed, setCollapsed] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
 
   useEffect(() => {
     record({ kind: 'nav', route: location.pathname })
@@ -86,15 +89,38 @@ export default function Layout() {
         <Outlet />
       </main>
 
+      {/* Mobile "More" sheet — makes the desktop-only pages reachable on phones/tablets */}
+      {moreOpen && (
+        <>
+          <div onClick={() => setMoreOpen(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 60 }} />
+          <div style={{ position: 'fixed', left: 0, right: 0, bottom: 64, zIndex: 61, background: '#161616', borderTop: '1px solid #2a2a2a', padding: 14, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+            {MORE_ITEMS.map(item => (
+              <NavLink key={item.path} to={item.path} onClick={() => setMoreOpen(false)}
+                className={({ isActive }) => `nav-item ${isActive ? 'nav-item-active' : ''}`}
+                style={{ flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '14px 6px', gap: 4 }}>
+                <span className="nav-icon" style={{ fontSize: 22 }}>{item.icon}</span>
+                <span className="nav-label">{item.label}</span>
+              </NavLink>
+            ))}
+          </div>
+        </>
+      )}
+
       {/* Mobile bottom tab bar */}
       <nav className="mobile-bottomnav">
         {NAV_ITEMS.filter(item => !item.desktopOnly).map(item => (
-          <NavLink key={item.path} to={item.path} end={item.path === '/'}
+          <NavLink key={item.path} to={item.path} end={item.path === '/'} onClick={() => setMoreOpen(false)}
             className={({ isActive }) => `nav-item ${isActive ? 'nav-item-active' : ''}`}>
             <span className="nav-icon">{item.icon}</span>
             <span className="nav-label">{item.short}</span>
           </NavLink>
         ))}
+        <button type="button" className={`nav-item ${moreOpen ? 'nav-item-active' : ''}`}
+          onClick={() => setMoreOpen(o => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+          <span className="nav-icon">☰</span>
+          <span className="nav-label">More</span>
+        </button>
       </nav>
 
       <FeedbackButton />
