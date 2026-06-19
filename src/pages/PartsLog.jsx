@@ -1,12 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
+import { computeWarrantyUntil, warrantyStatus } from '../lib/calc/parts'
 
 const CATEGORIES = [
   'Engine', 'Brakes', 'Suspension', 'Filters', 'Electrical',
   'Body', 'Tyres', 'Fluids', 'Consumable', 'Other',
 ]
-const STATUSES = ['Purchased', 'Fitted', 'Returned']
+const STATUSES = ['In Stock', 'Purchased', 'Fitted', 'Returned']
+const AVAILABLE = ['In Stock', 'Purchased']     // counts as on-hand / available
+const FILTERS = ['All', 'In stock', 'Fitted', 'Returned']
+const today = () => new Date().toISOString().split('T')[0]
 
 const EMPTY_FORM = {
   purchased_at: new Date().toISOString().split('T')[0],
@@ -18,7 +22,13 @@ const EMPTY_FORM = {
   quantity: '1',
   unit_cost_kes: '',
   odometer_km: '',
-  status: 'Purchased',
+  status: 'In Stock',
+  oem_number: '',
+  equivalent_numbers: '',
+  location: '',
+  warranty_months: '',
+  warranty_until: '',
+  on_hand_qty: '',
   notes: '',
 }
 
@@ -29,11 +39,16 @@ const lineTotal = (form) => {
   return qty * unit
 }
 
-const STATUS_BADGE = { Fitted: 'badge-green', Purchased: 'badge-amber', Returned: 'badge' }
+const STATUS_BADGE = { 'In Stock': 'badge-gold', Fitted: 'badge-green', Purchased: 'badge-amber', Returned: 'badge' }
+const WARRANTY_BADGE = { active: 'badge-green', expired: 'badge' }
+const WARRANTY_LABEL = { active: 'Under warranty', expired: 'Warranty expired' }
 
 function PartForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer }) {
   const [form, setForm] = useState({ ...EMPTY_FORM, ...initial })
   const set = (field, value) => setForm(f => ({ ...f, [field]: value }))
+  const [showInv, setShowInv] = useState(() =>
+    !!(initial.oem_number || initial.equivalent_numbers || initial.location ||
+      initial.warranty_months || initial.warranty_until || initial.on_hand_qty))
 
   const total = lineTotal(form)   // derived — no effect needed
 
@@ -117,6 +132,46 @@ function PartForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
         </div>
       </div>
 
+      <button type="button" className="row-btn" style={{ marginBottom: 12 }} onClick={() => setShowInv(s => !s)}>
+        {showInv ? '▾' : '▸'} Inventory &amp; warranty
+      </button>
+
+      {showInv && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="form-row-2">
+            <div className="form-group">
+              <label>OEM number</label>
+              <input value={form.oem_number || ''} onChange={e => set('oem_number', e.target.value)} placeholder="genuine part number" />
+            </div>
+            <div className="form-group">
+              <label>Equivalent / cross-ref numbers</label>
+              <input value={form.equivalent_numbers || ''} onChange={e => set('equivalent_numbers', e.target.value)} placeholder="aftermarket equivalents" />
+            </div>
+          </div>
+          <div className="form-row-2">
+            <div className="form-group">
+              <label>Storage location</label>
+              <input value={form.location || ''} onChange={e => set('location', e.target.value)} placeholder="e.g. garage shelf B" />
+            </div>
+            <div className="form-group">
+              <label>On-hand qty</label>
+              <input type="number" value={form.on_hand_qty || ''} onChange={e => set('on_hand_qty', e.target.value)} placeholder="units on the shelf" />
+            </div>
+          </div>
+          <div className="form-row-2">
+            <div className="form-group">
+              <label>Warranty (months)</label>
+              <input type="number" value={form.warranty_months || ''} onChange={e => set('warranty_months', e.target.value)} placeholder="e.g. 12" />
+            </div>
+            <div className="form-group">
+              <label>Warranty until</label>
+              <input type="date" value={form.warranty_until || ''} onChange={e => set('warranty_until', e.target.value)} />
+            </div>
+          </div>
+          <p className="page-sub" style={{ margin: 0 }}>Leave “warranty until” blank to auto-fill from purchase date + months.</p>
+        </div>
+      )}
+
       <div className="form-group">
         <label>Notes</label>
         <textarea value={form.notes} onChange={e => set('notes', e.target.value)}
@@ -143,6 +198,7 @@ export default function PartsLog() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [filter, setFilter] = useState('All')
 
   const fetchLogs = useCallback(async () => {
     if (!activeVehicle) return
@@ -162,6 +218,7 @@ export default function PartsLog() {
     const out = { ...form }
     Object.keys(out).forEach(k => { if (out[k] === '') out[k] = null })
     out.total_cost_kes = lineTotal(form)
+    if (!out.warranty_until) out.warranty_until = computeWarrantyUntil(out)
     out.vehicle_id = activeVehicle.id
     return out
   }
@@ -191,6 +248,13 @@ export default function PartsLog() {
   const totalUnits = logs.reduce((sum, l) => sum + Number(l.quantity || 0), 0)
   const currentOdo = logs.reduce((max, l) => Math.max(max, Number(l.odometer_km || 0)), 0)
   const lastOdometer = currentOdo || null
+  const td = today()
+  const inStockCount = logs.filter(l => AVAILABLE.includes(l.status)).length
+  const underWarranty = logs.filter(l => warrantyStatus(l, td) === 'active').length
+  const shown = logs.filter(l =>
+    filter === 'All' ? true
+      : filter === 'In stock' ? AVAILABLE.includes(l.status)
+        : l.status === filter)
 
   if (!activeVehicle) return (
     <div className="page">
@@ -250,6 +314,16 @@ export default function PartsLog() {
             <div className="card-sub">on parts</div>
           </div>
           <div className="card">
+            <div className="card-label">In Stock</div>
+            <div className="card-value">{inStockCount}</div>
+            <div className="card-sub">available parts</div>
+          </div>
+          <div className="card">
+            <div className="card-label">Under Warranty</div>
+            <div className="card-value" style={{ color: underWarranty ? '#27ae60' : undefined }}>{underWarranty}</div>
+            <div className="card-sub">cover still active</div>
+          </div>
+          <div className="card">
             <div className="card-label">Total Entries</div>
             <div className="card-value">{logs.length}</div>
             <div className="card-sub">{totalUnits.toLocaleString()} units total</div>
@@ -267,6 +341,14 @@ export default function PartsLog() {
         </div>
       )}
 
+      {logs.length > 0 && (
+        <div className="row-actions" style={{ margin: '16px 0', flexWrap: 'wrap' }}>
+          {FILTERS.map(f => (
+            <button key={f} className={`row-btn ${filter === f ? 'vehicle-tab-active' : ''}`} onClick={() => setFilter(f)}>{f}</button>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <div className="placeholder-card"><p>Loading...</p></div>
       ) : logs.length === 0 ? (
@@ -274,6 +356,8 @@ export default function PartsLog() {
           <span>📦</span>
           <p>No parts logged yet — log your first part</p>
         </div>
+      ) : shown.length === 0 ? (
+        <div className="placeholder-card"><span>📦</span><p>No {filter.toLowerCase()} parts</p></div>
       ) : (
         <div className="table-wrapper">
           <table className="data-table">
@@ -290,22 +374,28 @@ export default function PartsLog() {
               </tr>
             </thead>
             <tbody>
-              {logs.map(log => (
+              {shown.map(log => {
+                const w = warrantyStatus(log, td)
+                return (
                 <tr key={log.id}>
                   <td className="mono">{log.purchased_at}</td>
                   <td className="primary">
                     {log.part_name}
-                    {(log.brand || log.part_number) && (
+                    {(log.brand || log.part_number || log.oem_number) && (
                       <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>
-                        {[log.brand, log.part_number].filter(Boolean).join(' · ')}
+                        {[log.brand, log.oem_number || log.part_number].filter(Boolean).join(' · ')}
                       </div>
                     )}
+                    {log.location && <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>📍 {log.location}</div>}
                   </td>
                   <td style={{ color: 'var(--text-dim)', fontSize: 12 }}>{log.category || '—'}</td>
                   <td style={{ color: 'var(--text-dim)', fontSize: 12 }}>{log.supplier || '—'}</td>
                   <td className="mono">{log.quantity != null ? Number(log.quantity).toLocaleString() : '—'}</td>
                   <td className="mono">{log.total_cost_kes != null ? Number(log.total_cost_kes).toLocaleString() : '—'}</td>
-                  <td><span className={`badge ${STATUS_BADGE[log.status] || 'badge'}`}>{log.status}</span></td>
+                  <td>
+                    <span className={`badge ${STATUS_BADGE[log.status] || 'badge'}`}>{log.status}</span>
+                    {w && <div style={{ marginTop: 4 }}><span className={`badge ${WARRANTY_BADGE[w]}`} title={log.warranty_until ? `until ${log.warranty_until}` : ''}>{WARRANTY_LABEL[w]}</span></div>}
+                  </td>
                   <td>
                     <div className="row-actions">
                       <button className="row-btn" onClick={() => { setSelected(log); setView('edit') }}>Edit</button>
@@ -320,7 +410,8 @@ export default function PartsLog() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>
