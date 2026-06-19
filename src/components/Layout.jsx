@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { path: '/work-orders', label: 'Work Orders', short: 'Jobs',   icon: '🛠️', desktopOnly: true },
   { path: '/snags',       label: 'Snags',     short: 'Snags',    icon: '⚠️'  },
   { path: '/dtc',         label: 'DTC Log',   short: 'DTC',      icon: '🩺', desktopOnly: true },
+  { path: '/documents',   label: 'Documents', short: 'Docs',     icon: '📄', desktopOnly: true },
   { path: '/analysis',    label: 'Analysis',  short: 'Stats',    icon: '📊' },
   { path: '/feedback',    label: 'Feedback',  short: 'Bugs',     icon: '🐞', desktopOnly: true },
 ]
