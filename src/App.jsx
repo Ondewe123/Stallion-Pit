@@ -15,6 +15,7 @@ import Snags from './pages/Snags'
 import Dtc from './pages/Dtc'
 import Analysis from './pages/Analysis'
 import Documents from './pages/Documents'
+import Backup from './pages/Backup'
 import Feedback from './pages/Feedback'
 
 function PrivateRoute({ children }) {
@@ -52,6 +53,7 @@ function AppRoutes() {
         <Route path="dtc" element={<Dtc />} />
         <Route path="analysis" element={<Analysis />} />
         <Route path="documents" element={<Documents />} />
+        <Route path="backup" element={<Backup />} />
         <Route path="feedback" element={<Feedback />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

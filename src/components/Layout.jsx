@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { path: '/dtc',         label: 'DTC Log',   short: 'DTC',      icon: '🩺', desktopOnly: true },
   { path: '/documents',   label: 'Documents', short: 'Docs',     icon: '📄', desktopOnly: true },
   { path: '/analysis',    label: 'Analysis',  short: 'Stats',    icon: '📊' },
+  { path: '/backup',      label: 'Backup',    short: 'Backup',   icon: '💾', desktopOnly: true },
   { path: '/feedback',    label: 'Feedback',  short: 'Bugs',     icon: '🐞', desktopOnly: true },
 ]
 
