@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
+import { vehicleRenewals, worstRenewalStatus } from '../lib/calc/renewals'
+
+const today = () => new Date().toISOString().split('T')[0]
+const RENEWAL_BADGE = { overdue: 'badge-red', soon: 'badge-amber', ok: 'badge-green' }
 
 const EMPTY_FORM = {
   name: '', make: '', model: '', sub_model: '', year: '',
@@ -8,7 +12,10 @@ const EMPTY_FORM = {
   drive_type: '', body_type: '', fuel_type: 'Petrol',
   color: '', license_plate: '', vin: '', purchase_date: '',
   purchase_price_kes: '', odometer_at_purchase: '',
-  fuel_tank_capacity: '', oil_capacity_litres: '', oil_spec: '', notes: '',
+  fuel_tank_capacity: '', oil_capacity_litres: '', oil_spec: '',
+  gearbox_code: '', tyre_size: '', battery_spec: '', coolant_spec: '', obd_notes: '',
+  insurance_expiry: '', inspection_expiry: '', licence_expiry: '', insurance_note: '',
+  notes: '',
 }
 
 function VehicleForm({ initial = EMPTY_FORM, onSave, onCancel, saving }) {
@@ -121,6 +128,52 @@ function VehicleForm({ initial = EMPTY_FORM, onSave, onCancel, saving }) {
           <input type="number" value={form.odometer_at_purchase} onChange={e => set('odometer_at_purchase', e.target.value)} placeholder="e.g. 165000" />
         </div>
       </div>
+      <div className="form-section-title">Specs (Tyres, Battery, Fluids)</div>
+      <div className="form-row">
+        <div className="form-group">
+          <label>Gearbox Code</label>
+          <input value={form.gearbox_code} onChange={e => set('gearbox_code', e.target.value)} placeholder="e.g. 717.4" />
+        </div>
+        <div className="form-group">
+          <label>Tyre Size</label>
+          <input value={form.tyre_size} onChange={e => set('tyre_size', e.target.value)} placeholder="e.g. 195/65 R15" />
+        </div>
+        <div className="form-group">
+          <label>Battery</label>
+          <input value={form.battery_spec} onChange={e => set('battery_spec', e.target.value)} placeholder="e.g. 60Ah 540A" />
+        </div>
+      </div>
+      <div className="form-row">
+        <div className="form-group">
+          <label>Coolant Spec</label>
+          <input value={form.coolant_spec} onChange={e => set('coolant_spec', e.target.value)} placeholder="e.g. G12++, MB 325.0" />
+        </div>
+        <div className="form-group">
+          <label>OBD Notes</label>
+          <input value={form.obd_notes} onChange={e => set('obd_notes', e.target.value)} placeholder="protocol / adapter / port" />
+        </div>
+      </div>
+
+      <div className="form-section-title">Renewals</div>
+      <div className="form-row">
+        <div className="form-group">
+          <label>Insurance Expiry</label>
+          <input type="date" value={form.insurance_expiry || ''} onChange={e => set('insurance_expiry', e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label>Inspection Expiry</label>
+          <input type="date" value={form.inspection_expiry || ''} onChange={e => set('inspection_expiry', e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label>Licence Expiry</label>
+          <input type="date" value={form.licence_expiry || ''} onChange={e => set('licence_expiry', e.target.value)} />
+        </div>
+      </div>
+      <div className="form-group">
+        <label>Insurance / Policy Note</label>
+        <input value={form.insurance_note} onChange={e => set('insurance_note', e.target.value)} placeholder="provider · policy number" />
+      </div>
+
       <div className="form-group">
         <label>Notes</label>
         <textarea value={form.notes} onChange={e => set('notes', e.target.value)}
@@ -147,9 +200,14 @@ function VehicleDetail({ vehicle, onEdit, onBack }) {
     { label: 'Color',          value: vehicle.color },
     { label: 'License Plate',  value: vehicle.license_plate },
     { label: 'VIN',            value: vehicle.vin },
+    { label: 'Gearbox Code',   value: vehicle.gearbox_code },
     { label: 'Oil Capacity',   value: vehicle.oil_capacity_litres ? `${vehicle.oil_capacity_litres}L` : null },
     { label: 'Oil Spec',       value: vehicle.oil_spec },
+    { label: 'Coolant Spec',   value: vehicle.coolant_spec },
     { label: 'Tank Capacity',  value: vehicle.fuel_tank_capacity ? `${vehicle.fuel_tank_capacity}L` : null },
+    { label: 'Tyre Size',      value: vehicle.tyre_size },
+    { label: 'Battery',        value: vehicle.battery_spec },
+    { label: 'OBD Notes',      value: vehicle.obd_notes },
     { label: 'Purchase Date',  value: vehicle.purchase_date },
     { label: 'Purchase Price', value: vehicle.purchase_price_kes ? `KES ${Number(vehicle.purchase_price_kes).toLocaleString()}` : null },
     { label: 'ODO at Purchase',value: vehicle.odometer_at_purchase ? `${Number(vehicle.odometer_at_purchase).toLocaleString()} km` : null },
@@ -173,6 +231,23 @@ function VehicleDetail({ vehicle, onEdit, onBack }) {
           </div>
         ))}
       </div>
+      {(() => {
+        const renewals = vehicleRenewals(vehicle, today())
+        if (!renewals.length) return null
+        return (
+          <div style={{ marginTop: 24 }}>
+            <div className="spec-label" style={{ marginBottom: 8 }}>Renewals</div>
+            <div className="row-actions" style={{ flexWrap: 'wrap', gap: 10 }}>
+              {renewals.map(r => (
+                <span key={r.key} className={`badge ${RENEWAL_BADGE[r.status]}`} style={{ padding: '6px 12px' }}>
+                  {r.label}: {r.date} · {r.status === 'overdue' ? `overdue ${Math.abs(r.days)}d` : `${r.days}d`}
+                </span>
+              ))}
+            </div>
+            {vehicle.insurance_note && <p className="page-sub" style={{ marginTop: 8 }}>{vehicle.insurance_note}</p>}
+          </div>
+        )
+      })()}
       {vehicle.notes && (
         <div className="vehicle-notes">
           <div className="spec-label" style={{ marginBottom: 8 }}>Notes</div>
@@ -216,6 +291,9 @@ export default function Fleet() {
 
   const openDetail = (vehicle) => { setSelected(vehicle); selectVehicle(vehicle); setView('detail') }
 
+  const td = today()
+  const renewalsDue = vehicles.filter(v => ['soon', 'overdue'].includes(worstRenewalStatus(v, td))).length
+
   if (view === 'add') return (
     <div className="page">
       <div className="page-header"><h2>Add Vehicle</h2><p className="page-sub">New vehicle to the fleet</p></div>
@@ -249,8 +327,16 @@ export default function Fleet() {
           + Add Vehicle
         </button>
       </div>
+      {renewalsDue > 0 && (
+        <div className="card" style={{ marginBottom: 16, borderColor: '#e74c3c' }}>
+          <div className="card-label">⏰ Renewals</div>
+          <div>{renewalsDue} vehicle{renewalsDue === 1 ? '' : 's'} with insurance / inspection / licence due soon or overdue — open the vehicle to see details.</div>
+        </div>
+      )}
       <div className="fleet-grid">
-        {vehicles.map(v => (
+        {vehicles.map(v => {
+          const ws = worstRenewalStatus(v, td)
+          return (
           <div key={v.id} className="fleet-card" onClick={() => openDetail(v)}>
             <div className="fleet-card-header">
               <div className="fleet-card-name">{v.name}</div>
@@ -264,8 +350,14 @@ export default function Fleet() {
               {v.fuel_type && <span>{v.fuel_type}</span>}
             </div>
             {v.license_plate && <div className="fleet-card-plate">{v.license_plate}</div>}
+            {ws && (ws === 'soon' || ws === 'overdue') && (
+              <div style={{ marginTop: 8 }}>
+                <span className={`badge ${RENEWAL_BADGE[ws]}`}>⏰ Renewal {ws === 'overdue' ? 'overdue' : 'due'}</span>
+              </div>
+            )}
           </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
