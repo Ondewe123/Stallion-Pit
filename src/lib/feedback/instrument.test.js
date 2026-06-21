@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { makeLoggingFetch } from './instrument'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { makeLoggingFetch, sanitizeInit } from './instrument'
 import { snapshot, clear } from './breadcrumbs'
 
 const REST = 'https://x.supabase.co/rest/v1/fuel_logs?select=*'
@@ -57,5 +57,38 @@ describe('makeLoggingFetch', () => {
     const f = makeLoggingFetch(async () => res)
     const out = await f(REST, { method: 'GET' })
     expect(out).toBe(res)
+  })
+
+  it('passes sanitized headers to the underlying fetch (no crash on a bad header value)', async () => {
+    let seen
+    const f = makeLoggingFetch(async (_input, init) => { seen = init; return fakeResponse() })
+    await f(REST, { method: 'GET', headers: { Authorization: 'Bearer abc\n', apikey: 'ok' } })
+    expect(seen.headers.Authorization).toBe('Bearer abc') // newline stripped
+    expect(seen.headers.apikey).toBe('ok')
+  })
+})
+
+describe('sanitizeInit', () => {
+  it('strips control / non-Latin-1 chars from header values', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const out = sanitizeInit({ headers: { Authorization: 'Bearer good\r\n', X: 'café✓' } })
+    expect(out.headers.Authorization).toBe('Bearer good')
+    expect(out.headers.X).toBe('caf') // é and ✓ are outside 0x20-0x7E
+    vi.restoreAllMocks()
+  })
+
+  it('drops null/undefined header values that fetch would reject', () => {
+    const out = sanitizeInit({ headers: { A: undefined, B: null, C: 'keep' } })
+    expect(out.headers).toEqual({ C: 'keep' })
+  })
+
+  it('returns the same init object when headers are already clean', () => {
+    const init = { method: 'GET', headers: { Authorization: 'Bearer abc.def', apikey: 'sb_publishable_x' } }
+    expect(sanitizeInit(init)).toBe(init)
+  })
+
+  it('leaves Headers instances and missing headers untouched', () => {
+    const noHeaders = { method: 'GET' }
+    expect(sanitizeInit(noHeaders)).toBe(noHeaders)
   })
 })
