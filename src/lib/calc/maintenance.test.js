@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { daysUntil, addMonths, evaluate, computeNextDue, byPriorityThenUrgency, DUE_SOON_KM, DUE_SOON_DAYS } from './maintenance'
+import { daysUntil, addMonths, evaluate, computeNextDue, byPriorityThenUrgency, urgency, byUrgency, DUE_SOON_KM, DUE_SOON_DAYS } from './maintenance'
 
 const NOW = new Date('2026-06-18T12:00:00') // fixed "today" for deterministic tests
 
@@ -129,5 +129,54 @@ describe('byPriorityThenUrgency', () => {
       { k: 'p1', status: 'ok', priority: 1 },
     ]
     expect(sorted(items)).toEqual(['p1', 'default', 'p4'])
+  })
+})
+
+describe('urgency', () => {
+  it('normalises km remaining by the soon-window', () => {
+    expect(urgency({ remKm: 2000 })).toBe(2000 / DUE_SOON_KM)
+  })
+  it('normalises days remaining by the soon-window', () => {
+    expect(urgency({ remDays: 60 })).toBe(60 / DUE_SOON_DAYS)
+  })
+  it('uses the binding (smaller) axis when both are present', () => {
+    // km → 2.0, days → 0.5; the date axis is closer, so it binds
+    expect(urgency({ remKm: 2000, remDays: 15 })).toBe(0.5)
+  })
+  it('is negative when overdue', () => {
+    expect(urgency({ remKm: -500 })).toBe(-0.5)
+  })
+  it('is Infinity when nothing is scheduled', () => {
+    expect(urgency({ remKm: null, remDays: null })).toBe(Infinity)
+  })
+})
+
+describe('byUrgency', () => {
+  const sorted = (arr) => [...arr].sort(byUrgency).map(x => x.k)
+
+  it('orders most-due first: overdue → soon → ok → unscheduled', () => {
+    const items = [
+      { k: 'none', remKm: null, remDays: null },
+      { k: 'ok', remKm: 12000 },
+      { k: 'overdue', remKm: -500 },
+      { k: 'soon', remKm: 400 },
+    ]
+    expect(sorted(items)).toEqual(['overdue', 'soon', 'ok', 'none'])
+  })
+
+  it('does not bury a date-only item below a far km item (the reported bug)', () => {
+    const items = [
+      { k: 'farKm', remKm: 50000 },          // 50 windows away
+      { k: 'soonDate', remKm: null, remDays: 15 }, // 0.5 windows away
+    ]
+    expect(sorted(items)).toEqual(['soonDate', 'farKm'])
+  })
+
+  it('uses priority only to break urgency ties', () => {
+    const items = [
+      { k: 'normal', remKm: 1000, priority: 3 },
+      { k: 'critical', remKm: 1000, priority: 1 },
+    ]
+    expect(sorted(items)).toEqual(['critical', 'normal'])
   })
 })

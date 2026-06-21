@@ -54,6 +54,27 @@ export function byPriorityThenUrgency(a, b) {
   return (a.remDays ?? Infinity) - (b.remDays ?? Infinity)
 }
 
+// A single comparable "urgency" for an *evaluated* item: how much headroom remains on
+// the binding axis, measured in due-soon windows. Each axis is normalised by its own
+// soon-window (km by DUE_SOON_KM, days by DUE_SOON_DAYS) so km- and date-based items
+// share one scale; the smaller (sooner) axis binds. Negative = overdue, <=1 = due-soon,
+// >1 = ok — mirroring evaluate()'s bands. Infinity when nothing is scheduled (sorts last).
+export function urgency(item) {
+  const u = []
+  if (item.remKm != null) u.push(Number(item.remKm) / DUE_SOON_KM)
+  if (item.remDays != null) u.push(Number(item.remDays) / DUE_SOON_DAYS)
+  return u.length ? Math.min(...u) : Infinity
+}
+
+// Comparator for *evaluated* items: most-due first (overdue → soon → ok → unscheduled),
+// with the binding axis (km or date) honoured equally. priority (1→4) only breaks ties
+// between items that are equally due. This is the "sort by the most due thing" ordering.
+export function byUrgency(a, b) {
+  const d = urgency(a) - urgency(b)
+  if (d) return d
+  return (a.priority ?? 3) - (b.priority ?? 3)
+}
+
 // Fill in next_due_odometer / next_due_date from last-done + interval when they
 // were left blank. Returns a new object; does not mutate the input.
 export function computeNextDue(out) {

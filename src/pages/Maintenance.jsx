@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
-import { DUE_SOON_KM, DUE_SOON_DAYS, addMonths, evaluate, computeNextDue, byPriorityThenUrgency } from '../lib/calc/maintenance'
+import { DUE_SOON_KM, DUE_SOON_DAYS, addMonths, evaluate, computeNextDue, byUrgency } from '../lib/calc/maintenance'
 
 const PRIORITY = { 1: { label: 'Critical', badge: 'badge-red' }, 2: { label: 'High', badge: 'badge-amber' }, 3: { label: 'Normal', badge: 'badge-gold' }, 4: { label: 'Low', badge: 'badge' } }
 const DIFF_BADGE = { Easy: 'badge-green', Moderate: 'badge-gold', Hard: 'badge-amber', Pro: 'badge-red' }
@@ -223,7 +223,7 @@ export default function Maintenance() {
 
   const evaluated = items
     .map(it => ({ ...it, ...evaluate(it, currentOdo, { dueSoonKm: thr(it.warn_threshold_km), dueSoonDays: thr(it.warn_threshold_days) }) }))
-    .sort(byPriorityThenUrgency)
+    .sort(byUrgency)
   const overdueCount = evaluated.filter(e => e.status === 'overdue').length
   const soonCount = evaluated.filter(e => e.status === 'soon').length
 
@@ -313,6 +313,9 @@ export default function Maintenance() {
         </div>
       ) : (
         <div className="table-wrapper">
+          <div style={{ fontSize: 12, color: 'var(--text-dim)', padding: '0 0 8px 2px' }}>
+            Sorted by most due first — overdue, then soonest (km or date, whichever comes first)
+          </div>
           <table className="data-table">
             <thead>
               <tr>
