@@ -1,7 +1,17 @@
 import { useState, useEffect, useCallback } from 'react'
+import {
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+} from 'recharts'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
-import { correctedConsumption } from '../lib/calc/consumption'
+import { correctedConsumption, rolling, num } from '../lib/calc/consumption'
+import { cleanFuelLog } from '../lib/fuelForm'
+
+const TREND_RANGES = [{ k: '3', mo: 3 }, { k: '6', mo: 6 }, { k: '12', mo: 12 }, { k: 'All', mo: null }]
+const AXIS = { fontSize: 11, fill: '#8a8a8a' }
+const GRID = '#2a2a2a'
+const TIP = { background: '#161616', border: '1px solid #333', borderRadius: 4, fontSize: 12 }
+const round2 = (n) => Math.round(n * 100) / 100
 
 const EMPTY_FORM = {
   logged_at: new Date().toISOString().split('T')[0],
@@ -72,6 +82,52 @@ function ConsumptionBadge({ logs }) {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+// L/100km over time — rolling 3-fill corrected economy, range-filtered to recent months.
+// `logs` arrive newest-first; rolling() needs oldest-first, so we sort a copy ascending.
+function ConsumptionTrend({ logs }) {
+  const [range, setRange] = useState(TREND_RANGES[1]) // default: last 6 months
+  const asc = [...logs].sort((a, b) => num(a.odometer_km) - num(b.odometer_km))
+  const cutoff = range.mo
+    ? (() => { const d = new Date(); d.setMonth(d.getMonth() - range.mo); return d.toISOString().split('T')[0] })()
+    : '0000-01-01'
+  const series = rolling(asc, 3, (dist, vol) => (vol > 0 ? round2((vol / dist) * 100) : null))
+    .filter(p => p.date && p.date >= cutoff)
+
+  return (
+    <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 10 }}>
+        <div>
+          <div className="card-label">Consumption Trend</div>
+          <div className="card-sub">L/100km · rolling 3-fill corrected</div>
+        </div>
+        <div className="consumption-windows">
+          {TREND_RANGES.map(r => (
+            <button key={r.k} className={`window-btn ${range.k === r.k ? 'window-btn-active' : ''}`}
+              onClick={() => setRange(r)}>{r.k === 'All' ? 'All' : `${r.k}mo`}</button>
+          ))}
+        </div>
+      </div>
+      {series.length < 2 ? (
+        <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)' }}>
+          Not enough fills in this range
+        </div>
+      ) : (
+        <div style={{ height: 220, width: '100%' }}>
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+            <LineChart data={series} margin={{ top: 6, right: 12, bottom: 0, left: -8 }}>
+              <CartesianGrid stroke={GRID} vertical={false} />
+              <XAxis dataKey="date" tick={AXIS} minTickGap={40} tickLine={false} axisLine={{ stroke: GRID }} />
+              <YAxis tick={AXIS} tickLine={false} axisLine={false} width={40} domain={['auto', 'auto']} />
+              <Tooltip contentStyle={TIP} labelStyle={{ color: '#aaa' }} />
+              <Line type="monotone" dataKey="value" name="L/100km" stroke="#c9a227" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   )
 }
@@ -294,13 +350,7 @@ export default function FuelLog() {
 
   useEffect(() => { fetchLogs() }, [fetchLogs])
 
-  const clean = (form) => {
-    const out = { ...form }
-    Object.keys(out).forEach(k => { if (out[k] === '') out[k] = null })
-    out.vehicle_id = activeVehicle.id
-    delete out.derived_ppl
-    return out
-  }
+  const clean = (form) => cleanFuelLog(form, activeVehicle.id)
 
   const handleAdd = async (form) => {
     setSaving(true); setError(null)
@@ -375,6 +425,9 @@ export default function FuelLog() {
 
       {/* Consumption summary */}
       {logs.length >= 2 && <ConsumptionBadge logs={logs} />}
+
+      {/* Consumption trend chart */}
+      {logs.length >= 4 && <ConsumptionTrend logs={logs} />}
 
       {/* Quick stats */}
       {logs.length > 0 && (
