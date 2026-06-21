@@ -21,6 +21,15 @@ export function correctedConsumption(logs, windowSize) {
   return (totalVolume / totalKm) * 100
 }
 
+// Estimated distance a given volume of fuel will cover at a known economy.
+// `litres` = fuel added at the last fill; `lPer100km` = corrected consumption.
+// Returns km, or null when either input is missing/non-positive.
+export function fillRangeKm(litres, lPer100km) {
+  const v = num(litres)
+  if (!lPer100km || lPer100km <= 0 || v <= 0) return null
+  return (v / lPer100km) * 100
+}
+
 // Rolling corrected metric over the last K fills (partial-fill safe).
 // `fuelAsc` must be ordered oldest-first (ascending odometer). For each window the
 // distance is odo[i] - odo[i-K] and volume/cost are summed over fills (i-K, i].

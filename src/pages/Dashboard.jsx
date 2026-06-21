@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
 import { evaluate as evalMaint } from '../lib/calc/maintenance'
-import { correctedConsumption as consumption } from '../lib/calc/consumption'
+import { correctedConsumption as consumption, fillRangeKm } from '../lib/calc/consumption'
+import { kmThisMonth, avgKmPerMonth } from '../lib/calc/distance'
 
 const kes = (n) => Number(n || 0).toLocaleString()
 
@@ -71,7 +72,16 @@ export default function Dashboard() {
   const avMaint = data.maint.filter(m => m.vehicle_id === avId).map(m => ({ ...m, ...evalMaint(m, odoBy[avId]) }))
 
   const currentOdo = odoBy[avId] || 0
+  const odoReadings = [
+    ...fuelDesc.map(f => ({ odometer_km: f.odometer_km, date: f.logged_at })),
+    ...avSvc.map(s => ({ odometer_km: s.odometer_km, date: s.serviced_at })),
+  ]
+  const kmMonth = kmThisMonth(odoReadings)
+  const avgKmMonth = avgKmPerMonth(odoReadings)
   const lkm = consumption(fuelDesc, 10)
+  const lastFill = fuelDesc[0]
+  const lastFillLitres = Number(lastFill?.volume_litres || 0)
+  const fillRange = fillRangeKm(lastFillLitres, lkm)
   const openSnags = avSnags.filter(n => ACTIVE_SNAG.includes(n.status))
   const overdue = avMaint.filter(m => m.status === 'overdue')
   const dueSoon = avMaint.filter(m => m.status === 'soon')
@@ -124,10 +134,20 @@ export default function Dashboard() {
           {/* active vehicle key stats */}
           <div className="fuel-stats-grid">
             <div className="card"><div className="card-label">Current Odometer</div><div className="card-value">{currentOdo ? currentOdo.toLocaleString() : '—'} <span style={{ fontSize: 14, color: 'var(--text-mid)' }}>km</span></div><div className="card-sub">latest recorded</div></div>
+            <div className="card">
+              <div className="card-label">Distance · this month</div>
+              <div className="card-value">{kmMonth != null ? Math.round(kmMonth).toLocaleString() : '—'} <span style={{ fontSize: 13, color: 'var(--text-mid)' }}>km</span></div>
+              <div className="card-sub">{avgKmMonth != null ? `avg ${Math.round(avgKmMonth).toLocaleString()} km/mo` : 'avg —'}</div>
+            </div>
             <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/fuel')}>
               <div className="card-label">Consumption</div>
               <div className="card-value">{lkm ? lkm.toFixed(2) : '—'} <span style={{ fontSize: 13, color: 'var(--text-mid)' }}>L/100km</span></div>
               <div className="card-sub">last 10 fills</div>
+            </div>
+            <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/fuel')}>
+              <div className="card-label">Last Fill Range</div>
+              <div className="card-value">{fillRange ? Math.round(fillRange).toLocaleString() : '—'} <span style={{ fontSize: 13, color: 'var(--text-mid)' }}>km</span></div>
+              <div className="card-sub">{fillRange ? `${lastFillLitres.toFixed(1)} L at last 10-fill avg` : 'needs a fill + economy'}</div>
             </div>
             <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/snags')}>
               <div className="card-label">Open Snags</div>

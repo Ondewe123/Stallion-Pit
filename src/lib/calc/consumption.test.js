@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { num, correctedConsumption, rolling } from './consumption'
+import { num, correctedConsumption, fillRangeKm, rolling } from './consumption'
 
 // Helper: build a newest-first (descending odometer) log list.
 const log = (odo, vol, cost) => ({ odometer_km: odo, volume_litres: vol, total_cost_kes: cost, logged_at: '2026-01-01' })
@@ -44,6 +44,27 @@ describe('correctedConsumption', () => {
 
   it('returns null for zero total volume', () => {
     expect(correctedConsumption([log(1100, 0, 0), log(1000, 0, 0)], 2)).toBeNull()
+  })
+})
+
+describe('fillRangeKm', () => {
+  it('estimates km from litres and L/100km economy', () => {
+    // 40 L at 8 L/100km => 500 km
+    expect(fillRangeKm(40, 8)).toBeCloseTo(500, 6)
+    // 50 L at 10 L/100km => 500 km
+    expect(fillRangeKm(50, 10)).toBeCloseTo(500, 6)
+  })
+
+  it('coerces string litres', () => {
+    expect(fillRangeKm('40', 8)).toBeCloseTo(500, 6)
+  })
+
+  it('returns null for missing or non-positive inputs', () => {
+    expect(fillRangeKm(0, 8)).toBeNull()
+    expect(fillRangeKm(40, 0)).toBeNull()
+    expect(fillRangeKm(40, null)).toBeNull()
+    expect(fillRangeKm(null, 8)).toBeNull()
+    expect(fillRangeKm(40, -8)).toBeNull()
   })
 })
 
