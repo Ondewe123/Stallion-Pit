@@ -27,12 +27,23 @@ export function AuthProvider({ children }) {
     return { error }
   }
 
+  // OAuth via Google. Redirects the browser to Google and back to this app's origin
+  // (works for localhost and the deployed domain alike); supabase-js then picks the
+  // session up from the redirect URL automatically (detectSessionInUrl).
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
+    })
+    return { error }
+  }
+
   const signOut = async () => {
     await supabase.auth.signOut()
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   )
