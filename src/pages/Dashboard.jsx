@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { evaluate as evalMaint } from '../lib/calc/maintenance'
 import { correctedConsumption as consumption, fillRangeKm } from '../lib/calc/consumption'
 import { kmThisMonth, avgKmPerMonth } from '../lib/calc/distance'
+import { fuelUsedByVehicle, fuelPeriods } from '../lib/calc/fuelUsage'
 
 const kes = (n) => Number(n || 0).toLocaleString()
 
@@ -56,10 +57,12 @@ export default function Dashboard() {
   const in30 = (d) => d && d >= since30Str
 
   // ---- fleet rollup ----
-  const fleetFuelMtd = data.fuel.filter(f => mtd(f.logged_at)).reduce((s, f) => s + Number(f.total_cost_kes || 0), 0)
-  const fleetFuel30 = data.fuel.filter(f => in30(f.logged_at)).reduce((s, f) => s + Number(f.total_cost_kes || 0), 0)
   const fleetOpenSnags = data.snags.filter(n => ACTIVE_SNAG.includes(n.status)).length
   const fleetOverdue = data.maint.filter(m => evalMaint(m, odoBy[m.vehicle_id]).status === 'overdue').length
+
+  // per-car fuel used: previous calendar month + this-month-to-date (all-cars total lives on Analysis)
+  const fuelUsed = fuelUsedByVehicle(data.fuel, vehicles, new Date())
+  const periods = fuelPeriods(new Date())
 
   // ---- active vehicle ----
   const av = activeVehicle
@@ -109,7 +112,6 @@ export default function Dashboard() {
       {/* ---- fleet strip ---- */}
       <div className="fuel-stats-grid">
         <div className="card"><div className="card-label">Vehicles</div><div className="card-value">{vehicles.length}</div><div className="card-sub">in the fleet</div></div>
-        <div className="card"><div className="card-label">Fuel · MTD</div><div className="card-value">{kes(fleetFuelMtd)} <span style={{ fontSize: 14, color: 'var(--text-mid)' }}>KES</span></div><div className="card-sub">last 30d: KES {kes(fleetFuel30)}</div></div>
         <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/snags')}>
           <div className="card-label">Open Snags</div>
           <div className="card-value" style={{ color: fleetOpenSnags ? '#e74c3c' : undefined }}>{fleetOpenSnags}</div>
@@ -121,6 +123,39 @@ export default function Dashboard() {
           <div className="card-sub">fleet-wide</div>
         </div>
       </div>
+
+      {/* ---- fuel used · per car (all-cars total is on the Analysis page) ---- */}
+      {vehicles.length > 0 && (
+        <>
+          <h3 style={{ marginTop: 24, marginBottom: 12 }}>Fuel used · per car</h3>
+          <div className="table-wrapper">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Vehicle</th>
+                  <th>Last month ({periods.lastMonthLabel})</th>
+                  <th>This month ({periods.thisMonthLabel})</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fuelUsed.map(v => (
+                  <tr key={v.id} style={{ cursor: 'pointer' }} onClick={() => navigate('/fuel')}>
+                    <td className="primary">{v.name}</td>
+                    <td className="mono">
+                      {v.lastMonth.litres.toFixed(1)} L
+                      <span style={{ color: 'var(--text-dim)' }}> · KES {kes(v.lastMonth.kes)}</span>
+                    </td>
+                    <td className="mono">
+                      {v.thisMonth.litres.toFixed(1)} L
+                      <span style={{ color: 'var(--text-dim)' }}> · KES {kes(v.thisMonth.kes)}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
       {!av ? (
         <div className="placeholder-card"><span>◈</span><p>Select a vehicle for its dashboard</p></div>
