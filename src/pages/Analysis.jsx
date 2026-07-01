@@ -54,7 +54,7 @@ export default function Analysis() {
     if (!activeVehicle) return
     setRaw(null)
     const [fuel, svc, parts] = await Promise.all([
-      supabase.from('fuel_logs').select('logged_at, odometer_km, volume_litres, total_cost_kes, price_per_litre_kes, derived_price_per_litre')
+      supabase.from('fuel_logs').select('logged_at, odometer_km, volume_litres, total_cost_kes, price_per_litre_kes, derived_price_per_litre, exclude_from_economy')
         .eq('vehicle_id', activeVehicle.id).order('odometer_km', { ascending: true }),
       supabase.from('service_logs').select('serviced_at, total_cost_kes, category').eq('vehicle_id', activeVehicle.id),
       supabase.from('parts').select('purchased_at, total_cost_kes').eq('vehicle_id', activeVehicle.id),

@@ -19,7 +19,7 @@ export default function Dashboard() {
     let alive = true
     ;(async () => {
       const [fuel, svc, parts, snags, maint] = await Promise.all([
-        supabase.from('fuel_logs').select('vehicle_id, logged_at, odometer_km, volume_litres, total_cost_kes'),
+        supabase.from('fuel_logs').select('vehicle_id, logged_at, odometer_km, volume_litres, total_cost_kes, exclude_from_economy'),
         supabase.from('service_logs').select('vehicle_id, serviced_at, odometer_km, total_cost_kes, category'),
         supabase.from('parts').select('vehicle_id, purchased_at, total_cost_kes, part_name'),
         supabase.from('snags').select('vehicle_id, reported_at, title, severity, status'),
