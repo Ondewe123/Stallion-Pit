@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, Fragment } from 'react'
-import { listReports, updateReportStatus, screenshotUrl } from '../lib/feedback/reports'
+import { listReports, updateReportStatus, updateReport, deleteReport, screenshotUrl } from '../lib/feedback/reports'
+
+const TYPES = ['bug', 'error', 'idea']
 
 const FILTERS = [
   { key: 'open', label: 'Open' },
@@ -29,6 +31,10 @@ export default function Feedback() {
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(null)
   const [shotUrls, setShotUrls] = useState({})
+  const [editingId, setEditingId] = useState(null)
+  const [editForm, setEditForm] = useState({ comment: '', type: 'bug' })
+  const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [saving, setSaving] = useState(false)
 
   const fetchReports = useCallback(async () => {
     setLoading(true)
@@ -55,6 +61,26 @@ export default function Feedback() {
 
   const advance = async (r) => {
     await updateReportStatus(r.id, NEXT_STATUS[r.status])
+    await fetchReports()
+  }
+
+  const startEdit = (r) => {
+    setDeleteConfirm(null)
+    setEditingId(r.id)
+    setEditForm({ comment: r.comment || '', type: r.type || 'bug' })
+  }
+
+  const saveEdit = async (r) => {
+    setSaving(true)
+    await updateReport(r.id, editForm)
+    setSaving(false)
+    setEditingId(null)
+    await fetchReports()
+  }
+
+  const doDelete = async (r) => {
+    await deleteReport(r.id, r.screenshot_path)
+    setDeleteConfirm(null)
     await fetchReports()
   }
 
@@ -107,17 +133,47 @@ export default function Feedback() {
                     </td>
                     <td className="primary">{r.comment || <span style={{ color: 'var(--text-dim)' }}>—</span>}</td>
                     <td>
-                      <button
-                        className="row-btn"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          advance(r)
-                        }}
-                      >
-                        {NEXT_LABEL[r.status]}
-                      </button>
+                      <div className="row-actions">
+                        {deleteConfirm === r.id ? (
+                          <>
+                            <button className="row-btn row-btn-danger" onClick={(e) => { e.stopPropagation(); doDelete(r) }}>Confirm</button>
+                            <button className="row-btn" onClick={(e) => { e.stopPropagation(); setDeleteConfirm(null) }}>Cancel</button>
+                          </>
+                        ) : (
+                          <>
+                            <button className="row-btn" onClick={(e) => { e.stopPropagation(); startEdit(r) }}>Edit</button>
+                            <button className="row-btn" onClick={(e) => { e.stopPropagation(); advance(r) }}>{NEXT_LABEL[r.status]}</button>
+                            <button className="row-btn row-btn-danger" onClick={(e) => { e.stopPropagation(); setDeleteConfirm(r.id) }}>Delete</button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
+                  {editingId === r.id && (
+                    <tr>
+                      <td colSpan={5} style={{ background: 'var(--charcoal)' }}>
+                        <div style={{ padding: '12px 8px', display: 'grid', gap: 10, maxWidth: 520 }}>
+                          <div className="form-group">
+                            <label>Type</label>
+                            <select value={editForm.type} onChange={(e) => setEditForm((f) => ({ ...f, type: e.target.value }))}>
+                              {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                          </div>
+                          <div className="form-group">
+                            <label>Comment</label>
+                            <textarea rows={3} value={editForm.comment}
+                              onChange={(e) => setEditForm((f) => ({ ...f, comment: e.target.value }))}
+                              style={{ resize: 'vertical' }} />
+                          </div>
+                          <div className="row-actions">
+                            <button className="btn-secondary" onClick={() => setEditingId(null)} disabled={saving}>Cancel</button>
+                            <button className="btn-primary" style={{ width: 'auto', padding: '8px 20px' }}
+                              onClick={() => saveEdit(r)} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                   {expanded === r.id && (
                     <tr>
                       <td colSpan={5} style={{ background: 'var(--charcoal)' }}>
