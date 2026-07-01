@@ -38,4 +38,10 @@ describe('cleanFuelLog', () => {
     expect(DB_MANAGED).toContain('derived_price_per_litre')
     expect(DB_MANAGED).toContain('derived_ppl')
   })
+
+  it('keeps exclude_from_economy (a normal editable column) in the payload', () => {
+    const out = cleanFuelLog({ odometer_km: 100, exclude_from_economy: true }, 'veh-1')
+    expect(out.exclude_from_economy).toBe(true)
+    expect(out.vehicle_id).toBe('veh-1')
+  })
 })
