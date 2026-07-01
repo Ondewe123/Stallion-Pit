@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { buildContext, statusPatch, withTimeout, newId } from './reports'
+import { buildContext, statusPatch, withTimeout, newId, updateReport, deleteReport } from './reports'
 
 describe('newId', () => {
   it('returns a v4-shaped uuid', () => {
@@ -84,5 +84,56 @@ describe('statusPatch', () => {
   it('clears resolved_at for non-resolved statuses', () => {
     expect(statusPatch('open', now)).toEqual({ status: 'open', resolved_at: null })
     expect(statusPatch('in_progress', now)).toEqual({ status: 'in_progress', resolved_at: null })
+  })
+})
+
+describe('updateReport', () => {
+  it('patches comment + type by id', async () => {
+    const calls = {}
+    const client = {
+      from: (t) => { calls.table = t; return {
+        update: (patch) => { calls.patch = patch; return {
+          eq: (col, val) => { calls.eq = [col, val]; return Promise.resolve({ error: null }) },
+        } },
+      } },
+    }
+    const r = await updateReport('r1', { comment: 'fixed text', type: 'idea' }, client)
+    expect(calls.table).toBe('feedback_reports')
+    expect(calls.patch).toEqual({ comment: 'fixed text', type: 'idea' })
+    expect(calls.eq).toEqual(['id', 'r1'])
+    expect(r.error).toBeNull()
+  })
+
+  it('maps a blank comment to null', async () => {
+    let patch
+    const client = { from: () => ({ update: (p) => { patch = p; return { eq: () => Promise.resolve({ error: null }) } } }) }
+    await updateReport('r1', { comment: '' }, client)
+    expect(patch).toEqual({ comment: null })
+  })
+
+  it('returns the error message on failure', async () => {
+    const client = { from: () => ({ update: () => ({ eq: () => Promise.resolve({ error: { message: 'nope' } }) }) }) }
+    expect(await updateReport('r1', { type: 'bug' }, client)).toEqual({ error: 'nope' })
+  })
+})
+
+describe('deleteReport', () => {
+  it('removes the screenshot then deletes the row', async () => {
+    const seq = []
+    const client = {
+      storage: { from: () => ({ remove: (paths) => { seq.push(['remove', paths]); return Promise.resolve({ error: null }) } }) },
+      from: (t) => ({ delete: () => ({ eq: (c, v) => { seq.push(['delete', t, c, v]); return Promise.resolve({ error: null }) } }) }),
+    }
+    const r = await deleteReport('r1', 'uid/r1.png', client)
+    expect(seq).toEqual([['remove', ['uid/r1.png']], ['delete', 'feedback_reports', 'id', 'r1']])
+    expect(r.error).toBeNull()
+  })
+
+  it('skips storage when there is no screenshot path', async () => {
+    const seq = []
+    const client = { from: () => ({ delete: () => ({ eq: () => { seq.push('delete'); return Promise.resolve({ error: null }) } }) }) }
+    const r = await deleteReport('r1', null, client)
+    expect(seq).toEqual(['delete'])
+    expect(r.error).toBeNull()
   })
 })

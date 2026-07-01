@@ -110,6 +110,22 @@ export async function updateReportStatus(id, status, client = supabase) {
   return { error: error ? error.message : null }
 }
 
+// Edit a report's user-facing fields (comment / type). Only provided keys are patched.
+export async function updateReport(id, { comment, type } = {}, client = supabase) {
+  const patch = {}
+  if (comment !== undefined) patch.comment = comment || null
+  if (type !== undefined) patch.type = type
+  const { error } = await client.from('feedback_reports').update(patch).eq('id', id)
+  return { error: error ? error.message : null }
+}
+
+// Delete a report. Best-effort removes its Storage screenshot first, then the row.
+export async function deleteReport(id, screenshotPath = null, client = supabase) {
+  if (screenshotPath) await client.storage.from(BUCKET).remove([screenshotPath])
+  const { error } = await client.from('feedback_reports').delete().eq('id', id)
+  return { error: error ? error.message : null }
+}
+
 // Convenience: build the screenshot's signed display URL for the reports page.
 export async function screenshotUrl(path, client = supabase) {
   if (!path) return null
