@@ -4,7 +4,7 @@ import {
 } from 'recharts'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
-import { correctedConsumption, rolling, num } from '../lib/calc/consumption'
+import { correctedConsumption, rolling, num, withDerived, GAP_HINT_DAYS } from '../lib/calc/consumption'
 import { cleanFuelLog } from '../lib/fuelForm'
 
 const TREND_RANGES = [{ k: '3', mo: 3 }, { k: '6', mo: 6 }, { k: '12', mo: 12 }, { k: 'All', mo: null }]
@@ -26,6 +26,7 @@ const EMPTY_FORM = {
   additive_name: '',
   driving_mode: 'Normal',
   notes: '',
+  exclude_from_economy: false,
 }
 
 function ConsumptionBadge({ logs }) {
@@ -254,6 +255,21 @@ function FuelForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
         </div>
       </div>
 
+      <div className="form-group">
+        <label>Economy calculation</label>
+        <div className="toggle-group">
+          <button type="button"
+            className={`toggle-btn ${!form.exclude_from_economy ? 'toggle-btn-active' : ''}`}
+            onClick={() => set('exclude_from_economy', false)}>Include</button>
+          <button type="button"
+            className={`toggle-btn ${form.exclude_from_economy ? 'toggle-btn-active' : ''}`}
+            onClick={() => set('exclude_from_economy', true)}>Exclude (gap / bad data)</button>
+        </div>
+        <div className="card-sub" style={{ marginTop: 6 }}>
+          Excluded fills break the economy chain — skipped in per-row, badge, trend and analysis.
+        </div>
+      </div>
+
       {/* Toggle Button for Secondary Fields */}
       <div style={{ margin: '8px 0 20px' }}>
         <button
@@ -375,6 +391,13 @@ export default function FuelLog() {
 
   const lastOdometer = logs[0]?.odometer_km || null
 
+  // Per-row distance/economy is derived fresh from the sorted logs on every render, so it
+  // stays correct after deletes/edits/reorders (the stored km_since_last trigger did not).
+  const derivedById = new Map(
+    withDerived([...logs].sort((a, b) => num(a.odometer_km) - num(b.odometer_km))).map(d => [d.id, d])
+  )
+  const latest = logs[0] ? derivedById.get(logs[0].id) : null
+
   if (!activeVehicle) return (
     <div className="page">
       <div className="page-header"><h2>Fuel Log</h2></div>
@@ -452,7 +475,7 @@ export default function FuelLog() {
             <div className="card-label">Current Odometer</div>
             <div className="card-value">{Number(logs[0].odometer_km).toLocaleString()} <span style={{ fontSize: 14, color: 'var(--text-mid)' }}>km</span></div>
             <div className="card-sub">
-              {logs[0].km_since_last ? `+${logs[0].km_since_last.toLocaleString()} km since last fill` : 'First entry'}
+              {latest?.kmSince ? `+${Number(latest.kmSince).toLocaleString()} km since last fill` : 'First entry'}
             </div>
           </div>
           <div className="card">
@@ -482,6 +505,8 @@ export default function FuelLog() {
                 <th>Odometer</th>
                 <th>Km Since</th>
                 <th>Volume (L)</th>
+                <th>Per-fill</th>
+                <th>Seg</th>
                 <th>Total (KES)</th>
                 <th>KES/L</th>
                 <th>Type</th>
@@ -491,18 +516,28 @@ export default function FuelLog() {
               </tr>
             </thead>
             <tbody>
-              {logs.map(log => (
-                <tr key={log.id}>
+              {logs.map(log => {
+                const d = derivedById.get(log.id) || {}
+                return (
+                <tr key={log.id} style={d.excluded ? { opacity: 0.5 } : undefined}>
                   <td className="mono">{log.logged_at}</td>
                   <td className="mono primary">{Number(log.odometer_km).toLocaleString()}</td>
-                  <td className="mono">{log.km_since_last ? `+${log.km_since_last.toLocaleString()}` : '—'}</td>
+                  <td className="mono">
+                    {d.kmSince != null ? `+${Number(d.kmSince).toLocaleString()}` : '—'}
+                    {d.daysSince != null && d.daysSince > GAP_HINT_DAYS && (
+                      <span style={{ color: '#e0a030', fontSize: 11 }}> · {d.daysSince}d ⚠</span>
+                    )}
+                  </td>
                   <td className="mono">{Number(log.volume_litres).toFixed(3)}</td>
+                  <td className="mono">{d.perFillL100 != null ? `${d.perFillL100.toFixed(1)}${log.is_partial ? '~' : ''}` : '—'}</td>
+                  <td className="mono">{d.segmentL100 != null ? d.segmentL100.toFixed(1) : '—'}</td>
                   <td className="mono">{Number(log.total_cost_kes).toLocaleString()}</td>
                   <td className="mono">{log.derived_price_per_litre ? Number(log.derived_price_per_litre).toFixed(2) : '—'}</td>
                   <td>
                     <span className={`badge ${log.is_partial ? 'badge-amber' : 'badge-green'}`}>
                       {log.is_partial ? 'Partial' : 'Full'}
                     </span>
+                    {d.excluded && <span className="badge" style={{ marginLeft: 4 }}>excluded</span>}
                   </td>
                   <td style={{ color: 'var(--text-dim)', fontSize: 12 }}>{log.station || '—'}</td>
                   <td style={{ color: 'var(--text-dim)', fontSize: 12 }}>{log.driving_mode || '—'}</td>
@@ -520,7 +555,8 @@ export default function FuelLog() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>
