@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { num, correctedConsumption, fillRangeKm, rolling } from './consumption'
+import { num, correctedConsumption, fillRangeKm, rolling, segments, withDerived, GAP_HINT_DAYS } from './consumption'
 
 // Helper: build a newest-first (descending odometer) log list.
 const log = (odo, vol, cost) => ({ odometer_km: odo, volume_litres: vol, total_cost_kes: cost, logged_at: '2026-01-01' })
@@ -65,6 +65,104 @@ describe('fillRangeKm', () => {
     expect(fillRangeKm(40, null)).toBeNull()
     expect(fillRangeKm(null, 8)).toBeNull()
     expect(fillRangeKm(40, -8)).toBeNull()
+  })
+})
+
+describe('segments', () => {
+  it('groups consecutive non-excluded fills, dropping excluded ones', () => {
+    const rows = [
+      { odometer_km: 1000 }, { odometer_km: 1100 },
+      { odometer_km: 1200, exclude_from_economy: true },
+      { odometer_km: 1300 }, { odometer_km: 1400 },
+    ]
+    const runs = segments(rows)
+    expect(runs).toHaveLength(2)
+    expect(runs[0].map(r => r.odometer_km)).toEqual([1000, 1100])
+    expect(runs[1].map(r => r.odometer_km)).toEqual([1300, 1400])
+  })
+  it('returns [] for empty/null input', () => {
+    expect(segments([])).toEqual([])
+    expect(segments(null)).toEqual([])
+  })
+  it('exposes GAP_HINT_DAYS', () => { expect(GAP_HINT_DAYS).toBe(180) })
+})
+
+describe('withDerived', () => {
+  const F = (odo, vol, opts = {}) => ({ id: `k${odo}`, odometer_km: odo, volume_litres: vol, logged_at: '2026-01-01', is_partial: true, ...opts })
+
+  it('computes factual kmSince from consecutive fills (delete-safe)', () => {
+    const asc = [F(1000, 5), F(1100, 5), F(1250, 5)]
+    const d = withDerived(asc)
+    expect(d[0].kmSince).toBeNull()
+    expect(d[1].kmSince).toBe(100)
+    expect(d[2].kmSince).toBe(150)
+    // delete the middle row → neighbour recomputes against what remains
+    const d2 = withDerived([asc[0], asc[2]])
+    expect(d2[1].kmSince).toBe(250)
+  })
+
+  it('brim-to-brim segment sums partials since the previous full tank and excludes that tank\'s own volume', () => {
+    const asc = [
+      F(1000, 40, { is_partial: false }), // starting brim (its 40L belongs to the prior segment)
+      F(1200, 10),                        // partial in between
+      F(1400, 30, { is_partial: false }), // closing brim
+    ]
+    const d = withDerived(asc)
+    expect(d[0].segmentL100).toBeNull()          // first full tank in run
+    expect(d[1].segmentL100).toBeNull()          // partials never carry a segment value
+    // (10 + 30) L over (1400-1000)=400 km => 10 L/100km
+    expect(d[2].segmentL100).toBeCloseTo(10, 6)
+  })
+
+  it('per-fill is null at a run boundary and after an excluded fill', () => {
+    const asc = [
+      F(1000, 5), F(1100, 10),
+      F(1200, 99, { exclude_from_economy: true }),
+      F(1300, 10),
+    ]
+    const d = withDerived(asc)
+    expect(d[0].perFillL100).toBeNull()          // first in run
+    expect(d[1].perFillL100).toBeCloseTo(10, 6)  // 10L / 100km
+    expect(d[2].excluded).toBe(true)
+    expect(d[2].perFillL100).toBeNull()          // excluded fill
+    expect(d[3].perFillL100).toBeNull()          // first fill after a break
+  })
+
+  it('computes daysSince across a long gap', () => {
+    const asc = [
+      { id: 'a', odometer_km: 1000, volume_litres: 5, logged_at: '2025-01-01', is_partial: true },
+      { id: 'b', odometer_km: 1100, volume_litres: 5, logged_at: '2025-08-01', is_partial: true },
+    ]
+    const d = withDerived(asc)
+    expect(d[1].daysSince).toBe(212)
+    expect(d[1].daysSince).toBeGreaterThan(GAP_HINT_DAYS)
+  })
+})
+
+describe('break-awareness', () => {
+  const L = (odo, vol, opts = {}) => ({ odometer_km: odo, volume_litres: vol, total_cost_kes: 0, logged_at: '2026-01-01', ...opts })
+
+  it('correctedConsumption excludes the flagged segment and its gap distance', () => {
+    // newest-first; X is an excluded bad/gap fill splitting the window into two runs
+    const logs = [
+      L(1300, 10), L(1200, 10),
+      L(1150, 99, { exclude_from_economy: true }),
+      L(1000, 5), L(900, 5),
+    ]
+    // run1: (1300-1200)=100km, 20L ; run2: (1000-900)=100km, 10L => 30L / 200km => 15
+    expect(correctedConsumption(logs, 5)).toBeCloseTo(15, 6)
+  })
+
+  it('rolling skips windows straddling an excluded fill', () => {
+    const asc = [
+      L(1000, 0), L(1100, 10),
+      L(1200, 99, { exclude_from_economy: true }),
+      L(1300, 10), L(1400, 10),
+    ]
+    const pts = rolling(asc, 1, (dist, vol) => (vol / dist) * 100)
+    expect(pts).toHaveLength(2) // i=1 ok, i=2 & i=3 straddle X, i=4 ok
+    expect(pts[0].value).toBeCloseTo(10, 6)
+    expect(pts[1].value).toBeCloseTo(10, 6)
   })
 })
 
