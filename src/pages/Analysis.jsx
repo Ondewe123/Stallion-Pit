@@ -6,6 +6,7 @@ import {
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
 import { num, rolling } from '../lib/calc/consumption'
+import { fuelUsedTotals, fuelPeriods } from '../lib/calc/fuelUsage'
 
 const RANGES = [{ k: '3', mo: 3 }, { k: '6', mo: 6 }, { k: '12', mo: 12 }, { k: 'All', mo: null }]
 const round2 = (n) => Math.round(n * 100) / 100
@@ -53,13 +54,14 @@ export default function Analysis() {
   const fetchData = useCallback(async () => {
     if (!activeVehicle) return
     setRaw(null)
-    const [fuel, svc, parts] = await Promise.all([
+    const [fuel, svc, parts, allFuel] = await Promise.all([
       supabase.from('fuel_logs').select('logged_at, odometer_km, volume_litres, total_cost_kes, price_per_litre_kes, derived_price_per_litre, exclude_from_economy')
         .eq('vehicle_id', activeVehicle.id).order('odometer_km', { ascending: true }),
       supabase.from('service_logs').select('serviced_at, total_cost_kes, category').eq('vehicle_id', activeVehicle.id),
       supabase.from('parts').select('purchased_at, total_cost_kes').eq('vehicle_id', activeVehicle.id),
+      supabase.from('fuel_logs').select('logged_at, volume_litres, total_cost_kes'), // all vehicles (RLS-scoped) for the fleet total
     ])
-    setRaw({ fuel: fuel.data || [], svc: svc.data || [], parts: parts.data || [] })
+    setRaw({ fuel: fuel.data || [], svc: svc.data || [], parts: parts.data || [], allFuel: allFuel.data || [] })
   }, [activeVehicle])
 
   useEffect(() => { fetchData() }, [fetchData])
@@ -170,12 +172,24 @@ export default function Analysis() {
   raw.parts.forEach(x => addM(x.purchased_at, 'parts', num(x.total_cost_kes)))
   const months = Object.values(byMonth).sort((a, b) => a.month.localeCompare(b.month))
 
+  // ---- fleet fuel used (all vehicles) — the all-cars total moved here off the Dashboard ----
+  const fleetFuel = fuelUsedTotals(raw.allFuel, new Date())
+  const periods = fuelPeriods(new Date())
+
   return (
     <div className="page">
       <div className="page-header">
         <h2>Analysis</h2>
         <p className="page-sub">{activeVehicle.name} · {n} fills · {firstDate} → {lastDate}</p>
       </div>
+
+      {/* ---- fleet fuel used (all vehicles) ---- */}
+      <h3 style={{ marginBottom: 12 }}>Fleet fuel used · all vehicles</h3>
+      <div className="fuel-stats-grid">
+        <Stat label={`Last month (${periods.lastMonthLabel})`} value={f1(fleetFuel.lastMonth.litres)} unit="L" sub={`KES ${kes(fleetFuel.lastMonth.kes)}`} />
+        <Stat label={`This month (${periods.thisMonthLabel})`} value={f1(fleetFuel.thisMonth.litres)} unit="L" sub={`KES ${kes(fleetFuel.thisMonth.kes)}`} />
+      </div>
+
 
       {/* ---- key figures (lifetime) ---- */}
       <h3 style={{ marginBottom: 12 }}>Key Figures</h3>
