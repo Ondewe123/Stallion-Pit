@@ -7,6 +7,8 @@ import { newId, storagePath } from '../docs.js'
 const DOCUMENTS_BUCKET = 'documents'
 const MAX_HTML_BYTES = 2_000_000
 const MAX_IMAGE_BYTES = 8_000_000
+const MAX_REDIRECT_HOPS = 2
+const FETCH_TIMEOUT_MS = 10_000
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
   '(KHTML, like Gecko) Chrome/124.0 Safari/537.36'
 
@@ -16,11 +18,50 @@ async function readCappedBytes(res, maxBytes) {
   return buf
 }
 
+function isRedirectStatus(status) {
+  return status >= 300 && status < 400
+}
+
+// Fetches with a timeout, aborting the request if it hasn't resolved in time.
+// An aborted fetch rejects with an AbortError, which is left to propagate to
+// the caller's existing error handling (no special-casing needed here).
+async function fetchWithTimeout(fetchImpl, url, init) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+  try {
+    return await fetchImpl(url, { ...init, signal: controller.signal })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+// Fetches a URL, re-validating every redirect target against the SSRF guard
+// before following it (never trusts the default follow-redirect behavior,
+// which would sail straight past a private address hiding behind a 30x on an
+// otherwise-public host). Follows at most MAX_REDIRECT_HOPS hops; a redirect
+// beyond that throws. Used for both the page fetch and the image fetch so the
+// redirect-following logic exists in exactly one place.
+async function fetchWithGuard(url, fetchImpl, lookupOpt, init = {}) {
+  let currentUrl = url
+  for (let hop = 0; hop <= MAX_REDIRECT_HOPS; hop++) {
+    await assertSafeUrl(currentUrl, lookupOpt)
+    const res = await fetchWithTimeout(fetchImpl, currentUrl, init)
+    if (!isRedirectStatus(res.status)) return res
+
+    const location = res.headers.get('location')
+    if (!location) return res // malformed redirect — let the caller's !res.ok handling report it
+
+    if (hop === MAX_REDIRECT_HOPS) throw new Error('Too many redirects')
+    currentUrl = new URL(location, currentUrl).toString()
+  }
+  // Unreachable — the loop above always returns or throws.
+  throw new Error('Too many redirects')
+}
+
 export async function resolvePastedPart(url, { supabaseClient, userId, fetchImpl = fetch, lookup } = {}) {
   const lookupOpt = lookup ? { lookup } : undefined
-  await assertSafeUrl(url, lookupOpt)
 
-  const pageRes = await fetchImpl(url, { headers: { 'User-Agent': USER_AGENT } })
+  const pageRes = await fetchWithGuard(url, fetchImpl, lookupOpt, { headers: { 'User-Agent': USER_AGENT } })
   if (!pageRes.ok) throw new Error(`Could not fetch that link (HTTP ${pageRes.status})`)
   const htmlBytes = await readCappedBytes(pageRes, MAX_HTML_BYTES)
   const html = new TextDecoder('utf-8').decode(htmlBytes)
@@ -33,8 +74,7 @@ export async function resolvePastedPart(url, { supabaseClient, userId, fetchImpl
 
   if (parsed.imageUrl) {
     try {
-      await assertSafeUrl(parsed.imageUrl, lookupOpt)
-      const imgRes = await fetchImpl(parsed.imageUrl)
+      const imgRes = await fetchWithGuard(parsed.imageUrl, fetchImpl, lookupOpt)
       if (imgRes.ok) {
         const bytes = await readCappedBytes(imgRes, MAX_IMAGE_BYTES)
         const mimeType = imgRes.headers.get('content-type') || 'application/octet-stream'

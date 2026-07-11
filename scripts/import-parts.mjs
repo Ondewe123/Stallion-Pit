@@ -49,6 +49,17 @@ console.log(`\n${apply ? 'IMPORTING' : 'DRY RUN'} ${rowsToImport.length} entries
 
 let imported = 0, noLink = 0, failed = 0
 for (const entry of rowsToImport) {
+  if (!entry.supplier_url) noLink++
+
+  // Dry run must be genuinely side-effect-free: resolvePastedPart() does a real
+  // network fetch and, when it finds a product image, a real Storage upload — so
+  // it must never run unless we're actually about to write rows.
+  if (!apply) {
+    console.log(`  ${entry.part_name.slice(0, 50).padEnd(50)}` +
+      (entry.supplier_url ? ` | ${entry.supplier_url} (would fetch details)` : ' | (no link)'))
+    continue
+  }
+
   let fetched = null
   if (entry.supplier_url) {
     try {
@@ -56,12 +67,11 @@ for (const entry of rowsToImport) {
     } catch (err) {
       console.log(`  ⚠ fetch failed for "${entry.part_name}": ${err.message}`)
     }
-  } else {
-    noLink++
   }
 
   const partRow = {
     vehicle_id: vehicleId,
+    user_id: userId,
     purchased_at: new Date().toISOString().split('T')[0],
     part_name: fetched?.title || entry.part_name,
     part_number: entry.part_number,
@@ -75,8 +85,6 @@ for (const entry of rowsToImport) {
     (fetched?.price != null ? ` | ${fetched.price} ${fetched.currencyCode || ''}` : '') +
     (fetched?.documentPath ? ' | photo' : ''))
 
-  if (!apply) continue
-
   const { data, error } = await admin.from('parts').insert([partRow]).select().single()
   if (error) { console.log(`    ✗ insert failed: ${error.message}`); failed++; continue }
   imported++
@@ -85,6 +93,7 @@ for (const entry of rowsToImport) {
     const { error: docErr } = await admin.from('documents').insert([{
       id: fetched.documentId,
       vehicle_id: vehicleId,
+      user_id: userId,
       file_path: fetched.documentPath,
       file_name: fetched.fileName,
       mime_type: fetched.mimeType,

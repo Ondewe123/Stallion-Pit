@@ -12,6 +12,12 @@ function htmlResponse(html) {
 function imageResponse(bytes, contentType = 'image/jpeg') {
   return { ok: true, status: 200, arrayBuffer: async () => bytes.buffer, headers: { get: () => contentType } }
 }
+function redirectResponse(location, status = 302) {
+  return {
+    ok: false, status,
+    headers: { get: (name) => (name && name.toLowerCase() === 'location' ? location : null) },
+  }
+}
 
 const PAGE_WITH_IMAGE = `<html><head>
 <script type="application/ld+json">
@@ -75,5 +81,45 @@ describe('resolvePastedPart', () => {
     await expect(resolvePastedPart('https://example.com/missing', {
       supabaseClient, userId: 'u', fetchImpl, lookup: fakeLookupPublic,
     })).rejects.toThrow('HTTP 404')
+  })
+
+  it('follows a single redirect to a public URL and returns the final content', async () => {
+    const supabaseClient = { storage: { from: () => ({ upload: vi.fn() }) } }
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(redirectResponse('https://example.com/part/final'))
+      .mockResolvedValueOnce(htmlResponse(PAGE_NO_IMAGE))
+
+    const result = await resolvePastedPart('https://example.com/part/redirect-once', {
+      supabaseClient, userId: 'user-1', fetchImpl, lookup: fakeLookupPublic,
+    })
+
+    expect(result.title).toBe('Boot Gas Strut')
+    expect(result.price).toBe(9.5)
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+  })
+
+  it('rejects a redirect that lands on a private address', async () => {
+    const supabaseClient = { storage: { from: () => ({ upload: vi.fn() }) } }
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(redirectResponse('http://192.168.1.5/x'))
+
+    await expect(resolvePastedPart('https://example.com/part/evil-redirect', {
+      supabaseClient, userId: 'u', fetchImpl, lookup: fakeLookupPublic,
+    })).rejects.toThrow('private address')
+    // The private redirect target must be rejected by the guard before a second
+    // fetch is ever attempted against it.
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
+  it('throws rather than following more than the maximum number of redirects', async () => {
+    const supabaseClient = { storage: { from: () => ({ upload: vi.fn() }) } }
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(redirectResponse('https://example.com/part/hop1'))
+      .mockResolvedValueOnce(redirectResponse('https://example.com/part/hop2'))
+      .mockResolvedValueOnce(redirectResponse('https://example.com/part/hop3'))
+
+    await expect(resolvePastedPart('https://example.com/part/loop', {
+      supabaseClient, userId: 'u', fetchImpl, lookup: fakeLookupPublic,
+    })).rejects.toThrow(/too many redirects/i)
   })
 })
