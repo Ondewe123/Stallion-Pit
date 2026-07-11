@@ -84,7 +84,7 @@ for (const entry of rowsToImport) {
     part_number: entry.part_number,
     supplier_url: entry.supplier_url,
     category: 'Other',
-    status: 'Purchased',
+    status: 'Wanted',
     quantity: 1,
   }
 
