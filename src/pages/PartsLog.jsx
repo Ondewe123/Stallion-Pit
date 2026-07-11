@@ -8,9 +8,9 @@ const CATEGORIES = [
   'Engine', 'Brakes', 'Suspension', 'Filters', 'Electrical',
   'Body', 'Tyres', 'Fluids', 'Consumable', 'Other',
 ]
-const STATUSES = ['In Stock', 'Purchased', 'Fitted', 'Returned']
-const AVAILABLE = ['In Stock', 'Purchased']     // counts as on-hand / available
-const FILTERS = ['All', 'In stock', 'Fitted', 'Returned']
+const STATUSES = ['Wanted', 'In Stock', 'Purchased', 'Fitted', 'Returned']
+const AVAILABLE = ['In Stock', 'Purchased']     // counts as on-hand / available — Wanted excluded on purpose
+const FILTERS = ['All', 'Wanted', 'In stock', 'Fitted', 'Returned']
 const today = () => new Date().toISOString().split('T')[0]
 
 const EMPTY_FORM = {
@@ -41,7 +41,7 @@ const lineTotal = (form) => {
   return qty * unit
 }
 
-const STATUS_BADGE = { 'In Stock': 'badge-gold', Fitted: 'badge-green', Purchased: 'badge-amber', Returned: 'badge' }
+const STATUS_BADGE = { Wanted: 'badge', 'In Stock': 'badge-gold', Fitted: 'badge-green', Purchased: 'badge-amber', Returned: 'badge' }
 const WARRANTY_BADGE = { active: 'badge-green', expired: 'badge' }
 const WARRANTY_LABEL = { active: 'Under warranty', expired: 'Warranty expired' }
 
