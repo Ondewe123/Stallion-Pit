@@ -47,6 +47,6 @@ export default defineConfig({
   test: {
     // pure-function unit tests (src/lib/calc) — no DOM needed
     environment: 'node',
-    include: ['src/**/*.test.{js,jsx}'],
+    include: ['src/**/*.test.{js,jsx}', 'api/**/*.test.{js,jsx}'],
   },
 })
