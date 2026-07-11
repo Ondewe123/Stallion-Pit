@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
 import { computeWarrantyUntil, warrantyStatus } from '../lib/calc/parts'
+import { estimateLandedKes } from '../lib/priceEstimate'
 
 const CATEGORIES = [
   'Engine', 'Brakes', 'Suspension', 'Filters', 'Electrical',
@@ -16,6 +17,7 @@ const EMPTY_FORM = {
   purchased_at: new Date().toISOString().split('T')[0],
   part_name: '',
   part_number: '',
+  supplier_url: '',
   brand: '',
   category: 'Engine',
   supplier: '',
@@ -50,9 +52,45 @@ function PartForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
     !!(initial.oem_number || initial.equivalent_numbers || initial.location ||
       initial.warranty_months || initial.warranty_until || initial.on_hand_qty))
 
+  const [fetching, setFetching] = useState(false)
+  const [fetchError, setFetchError] = useState(null)
+  const [pendingPhoto, setPendingPhoto] = useState(null)
+  const [priceHint, setPriceHint] = useState(null)
+
+  const searchAutodoc = () => {
+    const q = form.part_number || form.part_name
+    if (!q) return
+    window.open('https://www.autodoc.co.uk/search?keyword=' + encodeURIComponent(q), '_blank', 'noopener')
+  }
+
+  const fetchDetails = async () => {
+    if (!form.supplier_url) return
+    setFetching(true); setFetchError(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/fetch-part', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${session?.access_token || ''}` },
+        body: JSON.stringify({ url: form.supplier_url }),
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error || 'Could not fetch that link')
+      if (body.title && !form.part_name) set('part_name', body.title)
+      setPriceHint(body.price != null ? {
+        raw: body.price, currencyCode: body.currencyCode,
+        landedKes: estimateLandedKes(body.price, body.currencyCode),
+      } : null)
+      setPendingPhoto(body.documentPath ? body : null)
+    } catch (err) {
+      setFetchError(err.message)
+    } finally {
+      setFetching(false)
+    }
+  }
+
   const total = lineTotal(form)   // derived — no effect needed
 
-  const handleSubmit = (e) => { e.preventDefault(); onSave(form) }
+  const handleSubmit = (e) => { e.preventDefault(); onSave(form, pendingPhoto) }
 
   return (
     <form onSubmit={handleSubmit} className="parts-form">
@@ -82,6 +120,20 @@ function PartForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
         </div>
       </div>
 
+      <div className="form-group">
+        <label>Part link</label>
+        <input value={form.supplier_url} onChange={e => set('supplier_url', e.target.value)}
+          placeholder="paste the product page URL you're buying from" />
+        <div className="row-actions" style={{ marginTop: 6 }}>
+          <button type="button" className="row-btn" onClick={searchAutodoc}>Search on Autodoc</button>
+          <button type="button" className="row-btn" onClick={fetchDetails}
+            disabled={!form.supplier_url || fetching}>
+            {fetching ? 'Fetching…' : 'Fetch details'}
+          </button>
+        </div>
+        {fetchError && <p className="form-error" style={{ marginTop: 4 }}>{fetchError}</p>}
+      </div>
+
       <div className="form-row-2">
         <div className="form-group">
           <label>Category</label>
@@ -106,6 +158,13 @@ function PartForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
           <label>Unit Cost (KES)</label>
           <input type="number" step="0.01" value={form.unit_cost_kes}
             onChange={e => set('unit_cost_kes', e.target.value)} placeholder="e.g. 1200" />
+          {priceHint && (
+            <p className="page-sub" style={{ marginTop: 4 }}>
+              Found: {priceHint.raw}{priceHint.currencyCode ? ` ${priceHint.currencyCode}` : ''}
+              {priceHint.landedKes != null &&
+                ` → approx KES ${Math.round(priceHint.landedKes).toLocaleString()} (rate + shipping estimate)`}
+            </p>
+          )}
         </div>
       </div>
 
