@@ -258,6 +258,7 @@ export default function PartsLog() {
   const [error, setError] = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [filter, setFilter] = useState('All')
+  const [photoThumbs, setPhotoThumbs] = useState({})   // part_id -> signed url
 
   const fetchLogs = useCallback(async () => {
     if (!activeVehicle) return
@@ -267,8 +268,25 @@ export default function PartsLog() {
       .select('*')
       .eq('vehicle_id', activeVehicle.id)
       .order('purchased_at', { ascending: false })
-    setLogs(data || [])
+    const list = data || []
+    setLogs(list)
     setLoading(false)
+
+    const ids = list.map(l => l.id)
+    if (ids.length) {
+      const { data: docs } = await supabase
+        .from('documents')
+        .select('part_id, file_path')
+        .eq('kind', 'Photo')
+        .in('part_id', ids)
+      const entries = await Promise.all((docs || []).map(async d => {
+        const { data: signed } = await supabase.storage.from('documents').createSignedUrl(d.file_path, 3600)
+        return [d.part_id, signed?.signedUrl || null]
+      }))
+      setPhotoThumbs(Object.fromEntries(entries))
+    } else {
+      setPhotoThumbs({})
+    }
   }, [activeVehicle])
 
   useEffect(() => { fetchLogs() }, [fetchLogs])
@@ -282,18 +300,33 @@ export default function PartsLog() {
     return out
   }
 
-  const handleAdd = async (form) => {
+  const insertPhotoDoc = async (photo, partId) => {
+    const { error } = await supabase.from('documents').insert([{
+      id: photo.documentId,
+      vehicle_id: activeVehicle.id,
+      file_path: photo.documentPath,
+      file_name: photo.fileName,
+      mime_type: photo.mimeType,
+      file_size: photo.fileSize,
+      kind: 'Photo',
+      part_id: partId,
+    }])
+    if (error) console.error('[parts] photo attach failed:', error.message)
+  }
+
+  const handleAdd = async (form, pendingPhoto) => {
     setSaving(true); setError(null)
-    const { error } = await supabase.from('parts').insert([clean(form)])
+    const { data, error } = await supabase.from('parts').insert([clean(form)]).select().single()
     if (error) { setError(error.message); setSaving(false); return }
+    if (pendingPhoto?.documentPath) await insertPhotoDoc(pendingPhoto, data.id)
     await fetchLogs(); setSaving(false); setView('list')
   }
 
-  const handleEdit = async (form) => {
+  const handleEdit = async (form, pendingPhoto) => {
     setSaving(true); setError(null)
-    const { error } = await supabase
-      .from('parts').update(clean(form)).eq('id', selected.id)
+    const { error } = await supabase.from('parts').update(clean(form)).eq('id', selected.id)
     if (error) { setError(error.message); setSaving(false); return }
+    if (pendingPhoto?.documentPath) await insertPhotoDoc(pendingPhoto, selected.id)
     await fetchLogs(); setSaving(false); setView('list')
   }
 
@@ -439,13 +472,21 @@ export default function PartsLog() {
                 <tr key={log.id}>
                   <td className="mono">{log.purchased_at}</td>
                   <td className="primary">
-                    {log.part_name}
-                    {(log.brand || log.part_number || log.oem_number) && (
-                      <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>
-                        {[log.brand, log.oem_number || log.part_number].filter(Boolean).join(' · ')}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {photoThumbs[log.id] && (
+                        <img src={photoThumbs[log.id]} alt=""
+                          style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
+                      )}
+                      <div>
+                        {log.part_name}
+                        {(log.brand || log.part_number || log.oem_number) && (
+                          <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>
+                            {[log.brand, log.oem_number || log.part_number].filter(Boolean).join(' · ')}
+                          </div>
+                        )}
+                        {log.location && <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>📍 {log.location}</div>}
                       </div>
-                    )}
-                    {log.location && <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>📍 {log.location}</div>}
+                    </div>
                   </td>
                   <td style={{ color: 'var(--text-dim)', fontSize: 12 }}>{log.category || '—'}</td>
                   <td style={{ color: 'var(--text-dim)', fontSize: 12 }}>{log.supplier || '—'}</td>
