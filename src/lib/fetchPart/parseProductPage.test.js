@@ -28,6 +28,15 @@ const SYMBOL_PRICE_ONLY = `<html><body>
 
 const NOTHING_FOUND = `<html><body><p>Нет данных</p></body></html>`
 
+// Real-world markup separates the number and currency symbol into different
+// elements (confirmed against an actual neoriginal.ru product page) — this is
+// NOT the same shape as SYMBOL_PRICE_ONLY above, where they're already adjacent.
+const SYMBOL_PRICE_SPLIT_ACROSS_TAGS = `<html><body>
+<div class="bestOffer--info-price"><div class="list--cell list--cell-price"><span>875,75</span>&nbsp;
+					₽
+					<div class="offerCard--item"></div></div></div>
+</body></html>`
+
 describe('parseProductHtml', () => {
   it('reads title, image, price and currency from JSON-LD Product', () => {
     expect(parseProductHtml(JSONLD_FULL)).toEqual({
@@ -58,6 +67,15 @@ describe('parseProductHtml', () => {
 
   it('extracts a symbol-formatted price when no structured data is present', () => {
     expect(parseProductHtml(SYMBOL_PRICE_ONLY)).toEqual({
+      title: null,
+      imageUrl: null,
+      price: 875.75,
+      currencyCode: 'RUB',
+    })
+  })
+
+  it('extracts a symbol-formatted price even when split across tags/whitespace', () => {
+    expect(parseProductHtml(SYMBOL_PRICE_SPLIT_ACROSS_TAGS)).toEqual({
       title: null,
       imageUrl: null,
       price: 875.75,

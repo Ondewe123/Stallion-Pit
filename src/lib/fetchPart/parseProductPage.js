@@ -16,9 +16,17 @@ function parseAmount(raw, code) {
   return Number(cleaned)
 }
 
+// Real markup almost never has the number and currency symbol literally adjacent —
+// they're normally in separate elements (e.g. `<span>875,75</span> ₽`). Strip tags
+// and collapse whitespace/&nbsp; first so the symbol regexes see plain text.
+function stripTags(html) {
+  return html.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ')
+}
+
 function extractSymbolPrice(html) {
+  const text = stripTags(html)
   for (const { code, re } of SYMBOL_PATTERNS) {
-    const m = re.exec(html)
+    const m = re.exec(text)
     if (m) return { amount: parseAmount(m[1], code), currencyCode: code }
   }
   return null
