@@ -37,7 +37,14 @@ const env = { ...readEnv('.env'), ...readEnv('.env.local') }
 const url = env.VITE_SUPABASE_URL
 const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY
 if (!url) fail('Missing VITE_SUPABASE_URL in .env')
-if (!serviceKey || serviceKey.length < 20) fail('Missing SUPABASE_SERVICE_ROLE_KEY in .env.local')
+if (!serviceKey || serviceKey.includes('PASTE') || serviceKey.length < 20) {
+  fail('Missing SUPABASE_SERVICE_ROLE_KEY in .env.local.\n' +
+       '  Supabase dashboard → Project Settings → API → service_role (Reveal, Copy)\n' +
+       '  Put it in .env.local as:  SUPABASE_SERVICE_ROLE_KEY=<key>')
+}
+if (serviceKey.startsWith('sb_publishable') || /anon/i.test(serviceKey)) {
+  fail('That looks like the ANON/publishable key. This import needs the service_role (secret) key to bypass RLS.')
+}
 
 const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } })
 
