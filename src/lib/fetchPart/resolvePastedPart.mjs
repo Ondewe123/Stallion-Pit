@@ -25,11 +25,19 @@ function isRedirectStatus(status) {
 // Fetches with a timeout, aborting the request if it hasn't resolved in time.
 // An aborted fetch rejects with an AbortError, which is left to propagate to
 // the caller's existing error handling (no special-casing needed here).
+//
+// Always requests redirect: 'manual'. Without it, fetch()'s default
+// redirect: 'follow' behavior transparently follows any 3xx internally and
+// hands back only the final response — the caller never sees the
+// intermediate redirect, so fetchWithGuard's per-hop assertSafeUrl re-check
+// below can never run against the actual redirect target. redirect: 'manual'
+// is placed after the caller-supplied init so it can never be overridden by
+// an init that happens to set its own redirect option.
 async function fetchWithTimeout(fetchImpl, url, init) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
   try {
-    return await fetchImpl(url, { ...init, signal: controller.signal })
+    return await fetchImpl(url, { ...init, redirect: 'manual', signal: controller.signal })
   } finally {
     clearTimeout(timer)
   }
