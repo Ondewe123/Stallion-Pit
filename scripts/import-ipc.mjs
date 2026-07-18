@@ -85,45 +85,44 @@ console.log('Sample part:', mapped.parts[0]?.part_number, mapped.parts[0]?.name)
 
 if (!apply) {
   console.log('\nDry run complete. Re-run with --apply to write IPC rows.\n')
-  process.exit(0)
+} else {
+  const { data: catalog, error: catalogError } = await admin
+    .from('ipc_catalogs')
+    .upsert([mapped.catalog], { onConflict: 'user_id,vin,source_name' })
+    .select('id')
+    .single()
+  if (catalogError) fail(`Catalog upsert failed: ${catalogError.message}`)
+
+  const { error: partsDeleteError } = await admin.from('ipc_parts').delete().eq('catalog_id', catalog.id)
+  const { error: diagramsDeleteError } = await admin.from('ipc_diagrams').delete().eq('catalog_id', catalog.id)
+  const deleteErrors = [
+    partsDeleteError && `ipc_parts delete failed: ${partsDeleteError.message}`,
+    diagramsDeleteError && `ipc_diagrams delete failed: ${diagramsDeleteError.message}`,
+  ].filter(Boolean)
+  if (deleteErrors.length) fail(deleteErrors.join('\n'))
+
+  const diagramsForInsert = mapped.diagrams.map(({ _key, ...row }) => ({ ...row, catalog_id: catalog.id }))
+  const { data: insertedDiagrams, error: diagramError } = await admin
+    .from('ipc_diagrams')
+    .insert(diagramsForInsert)
+    .select('id, branch, catalog_group, subgroup')
+  if (diagramError) fail(`Diagram insert failed: ${diagramError.message}`)
+
+  const diagramIds = new Map(insertedDiagrams.map(d => [[d.branch, d.catalog_group, d.subgroup].join('|'), d.id]))
+  const partRowsForInsert = mapped.parts.map(({ _diagramKey, ...row }) => ({
+    ...row,
+    catalog_id: catalog.id,
+    diagram_id: diagramIds.get(_diagramKey) || null,
+  }))
+
+  const chunk = 500
+  let inserted = 0
+  for (let i = 0; i < partRowsForInsert.length; i += chunk) {
+    const slice = partRowsForInsert.slice(i, i + chunk)
+    const { error } = await admin.from('ipc_parts').insert(slice)
+    if (error) fail(`Part insert failed after ${inserted} rows: ${error.message}`)
+    inserted += slice.length
+  }
+
+  console.log(`\nImported IPC catalog ${catalog.id}: ${insertedDiagrams.length} diagrams, ${inserted} parts.\n`)
 }
-
-const { data: catalog, error: catalogError } = await admin
-  .from('ipc_catalogs')
-  .upsert([mapped.catalog], { onConflict: 'user_id,vin,source_name' })
-  .select('id')
-  .single()
-if (catalogError) fail(`Catalog upsert failed: ${catalogError.message}`)
-
-const { error: partsDeleteError } = await admin.from('ipc_parts').delete().eq('catalog_id', catalog.id)
-const { error: diagramsDeleteError } = await admin.from('ipc_diagrams').delete().eq('catalog_id', catalog.id)
-const deleteErrors = [
-  partsDeleteError && `ipc_parts delete failed: ${partsDeleteError.message}`,
-  diagramsDeleteError && `ipc_diagrams delete failed: ${diagramsDeleteError.message}`,
-].filter(Boolean)
-if (deleteErrors.length) fail(deleteErrors.join('\n'))
-
-const diagramsForInsert = mapped.diagrams.map(({ _key, ...row }) => ({ ...row, catalog_id: catalog.id }))
-const { data: insertedDiagrams, error: diagramError } = await admin
-  .from('ipc_diagrams')
-  .insert(diagramsForInsert)
-  .select('id, branch, catalog_group, subgroup')
-if (diagramError) fail(`Diagram insert failed: ${diagramError.message}`)
-
-const diagramIds = new Map(insertedDiagrams.map(d => [[d.branch, d.catalog_group, d.subgroup].join('|'), d.id]))
-const partRowsForInsert = mapped.parts.map(({ _diagramKey, ...row }) => ({
-  ...row,
-  catalog_id: catalog.id,
-  diagram_id: diagramIds.get(_diagramKey) || null,
-}))
-
-const chunk = 500
-let inserted = 0
-for (let i = 0; i < partRowsForInsert.length; i += chunk) {
-  const slice = partRowsForInsert.slice(i, i + chunk)
-  const { error } = await admin.from('ipc_parts').insert(slice)
-  if (error) fail(`Part insert failed after ${inserted} rows: ${error.message}`)
-  inserted += slice.length
-}
-
-console.log(`\nImported IPC catalog ${catalog.id}: ${insertedDiagrams.length} diagrams, ${inserted} parts.\n`)
