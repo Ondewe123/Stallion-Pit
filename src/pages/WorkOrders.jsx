@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
 import { buildClosePlan } from '../lib/calc/workorders'
+import { toWorkOrderPartRows } from '../lib/ipc/snagParts'
 
 const STATUS_BADGE = { Open: 'badge-amber', 'In Progress': 'badge-gold', Closed: 'badge-green', Cancelled: 'badge' }
 const STATUSES = ['Open', 'In Progress', 'Closed', 'Cancelled']
@@ -77,6 +78,8 @@ export default function WorkOrders() {
   const [partForm, setPartForm] = useState(null)    // { ...EMPTY_PART, id? } | null
   const [closeConfirm, setCloseConfirm] = useState(false)
   const [pendingSnag, setPendingSnag] = useState(null) // from Snags "create work order"
+  const [pendingSnagTitle, setPendingSnagTitle] = useState('')
+  const [pendingSnagIpcParts, setPendingSnagIpcParts] = useState([])
 
   const fetchList = useCallback(async () => {
     if (!activeVehicle) return
@@ -117,6 +120,12 @@ export default function WorkOrders() {
       const { data, error: e } = await supabase.from('work_orders').insert([{ ...clean(form), vehicle_id: activeVehicle.id }]).select('id').single()
       if (e) { setError(e.message); setSaving(false); return }
       if (pendingSnag) { await supabase.from('snags').update({ work_order_id: data.id }).eq('id', pendingSnag); setPendingSnag(null) }
+      const ipcRows = toWorkOrderPartRows(pendingSnagIpcParts, data.id)
+      if (ipcRows.length > 0) {
+        const { error: partError } = await supabase.from('work_order_parts').insert(ipcRows)
+        if (partError) { setError('IPC parts: ' + partError.message); setSaving(false); return }
+        setPendingSnagIpcParts([])
+      }
       setSaving(false); await openEditor(data.id)
     }
   }
@@ -182,6 +191,8 @@ export default function WorkOrders() {
     const st = location.state
     if (st?.newFromSnag && view === 'list' && !loading) {
       setPendingSnag(st.newFromSnag.id)
+      setPendingSnagTitle(st.newFromSnag.title || '')
+      setPendingSnagIpcParts(st.newFromSnag.ipcParts || [])
       setWo(null); setView('editor')
       navigate(location.pathname, { replace: true, state: {} }) // clear so it doesn't re-fire
     }
@@ -192,7 +203,7 @@ export default function WorkOrders() {
     const parts = wo?.work_order_parts || []
     const partsTotal = parts.filter(p => p.status === 'Fitted').reduce((s, p) => s + Number(p.total_cost_kes || 0), 0)
     const isClosed = wo?.status === 'Closed' || wo?.status === 'Cancelled'
-    const draftTitle = pendingSnag ? `Fix: ${location.state?.newFromSnag?.title || ''}` : ''
+    const draftTitle = pendingSnag ? `Fix: ${pendingSnagTitle}` : ''
     return (
       <div className="page">
         <div className="page-header">
@@ -205,7 +216,10 @@ export default function WorkOrders() {
         <HeaderForm initial={wo?.id ? wo : { ...EMPTY_WO, title: draftTitle }} onSave={saveHeader} saving={saving} />
 
         {!wo?.id ? (
-          <p className="page-sub">Save the job to add parts, link snags and schedule items, and close it.</p>
+          <p className="page-sub">
+            Save the job to add parts, link snags and schedule items, and close it.
+            {pendingSnagIpcParts.length > 0 ? ` ${pendingSnagIpcParts.length} IPC part(s) will be added as planned parts.` : ''}
+          </p>
         ) : (
           <>
             {/* status actions */}

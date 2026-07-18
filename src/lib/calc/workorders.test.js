@@ -27,6 +27,14 @@ describe('buildClosePlan', () => {
     expect(plan.partsRows[0]).toMatchObject({ part_name: 'Oil filter', status: 'Fitted', work_order_id: 'wo-1', _woPartId: 'p1', odometer_km: 282000 })
   })
 
+  it('preserves IPC provenance on fitted parts', () => {
+    const parts = [
+      { id: 'p1', ipc_part_id: 'ipc-1', part_name: 'Engine mounting', status: 'Fitted', quantity: 1 },
+    ]
+    const plan = buildClosePlan(baseWO, parts, [], [], null)
+    expect(plan.partsRows[0].ipc_part_id).toBe('ipc-1')
+  })
+
   it('completes linked schedule items: sets last-done and recomputes next-due from interval', () => {
     const sched = [{ id: 's1', item: 'Engine Oil', distance_interval_km: 10000, time_interval_months: 12 }]
     const plan = buildClosePlan(baseWO, [], sched, [], null)
