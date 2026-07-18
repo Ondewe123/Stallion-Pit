@@ -782,6 +782,8 @@ input::placeholder { color: var(--text-dim); }
 
 .ipc-detail-pane {
   display: grid;
+  grid-template-columns: minmax(340px, 0.95fr) minmax(420px, 1.05fr);
+  align-items: start;
   gap: 12px;
   min-width: 0;
 }
@@ -795,7 +797,7 @@ input::placeholder { color: var(--text-dim); }
   background: #fff;
   border-radius: 4px;
   overflow: auto;
-  max-height: 44vh;
+  max-height: 62vh;
 }
 
 .ipc-diagram-image img {
@@ -805,16 +807,47 @@ input::placeholder { color: var(--text-dim); }
   margin: 0 auto;
 }
 
-.ipc-parts-table {
-  max-height: 42vh;
-  overflow: auto;
+.ipc-parts-panel {
+  min-width: 0;
   border: 1px solid var(--border);
+  background: var(--charcoal);
+}
+
+.ipc-parts-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.ipc-parts-panel-header strong {
+  color: var(--gold);
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+.ipc-parts-table {
+  max-height: 64vh;
+  overflow: auto;
 }
 
 .ipc-parts-table .data-table th {
   position: sticky;
   top: 0;
   z-index: 1;
+}
+
+@media (max-width: 1200px) {
+  .ipc-detail-pane {
+    grid-template-columns: 1fr;
+  }
 }
 
 .derived-ppl {

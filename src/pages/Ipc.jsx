@@ -10,7 +10,7 @@ const copyText = async (text) => {
 
 const PAGE_SIZE = 1000
 
-async function fetchAllRows(queryFactory) {
+export async function fetchAllRows(queryFactory) {
   const rows = []
   for (let from = 0; ; from += PAGE_SIZE) {
     const to = from + PAGE_SIZE - 1
@@ -215,24 +215,30 @@ export default function Ipc() {
                   )}
                 </div>
               )}
-              <div className="table-wrapper ipc-parts-table">
-                <table className="data-table">
-                  <thead><tr><th>Item</th><th>Part Number</th><th>Name</th><th>Qty</th><th>Replacement</th><th>Notes</th><th></th></tr></thead>
-                  <tbody>{shownParts.map(part => (
-                    <tr key={part.id}>
-                      <td className="mono">{part.item_no || '-'}</td>
-                      <td className="mono primary">{part.part_number}</td>
-                      <td>{part.name}</td>
-                      <td className="mono">{part.quantity || '-'}</td>
-                      <td className="mono">{part.replacement_numbers || '-'}</td>
-                      <td style={{ fontSize: 12, color: 'var(--text-dim)' }}>{[part.usage, part.remarks].filter(Boolean).join(' - ') || '-'}</td>
-                      <td><div className="row-actions">
-                        <button className="row-btn" onClick={() => copyText(part.part_number)}>Copy</button>
-                        {part.price_url && <button className="row-btn" onClick={() => window.open(part.price_url, '_blank', 'noopener')}>Price</button>}
-                      </div></td>
-                    </tr>
-                  ))}</tbody>
-                </table>
+              <div className="ipc-parts-panel">
+                <div className="ipc-parts-panel-header">
+                  <span>Parts</span>
+                  <strong>{shownParts.length}</strong>
+                </div>
+                <div className="table-wrapper ipc-parts-table">
+                  <table className="data-table">
+                    <thead><tr><th>Item</th><th>Part Number</th><th>Name</th><th>Qty</th><th>Replacement</th><th>Notes</th><th></th></tr></thead>
+                    <tbody>{shownParts.map(part => (
+                      <tr key={part.id}>
+                        <td className="mono">{part.item_no || '-'}</td>
+                        <td className="mono primary">{part.part_number}</td>
+                        <td>{part.name}</td>
+                        <td className="mono">{part.quantity || '-'}</td>
+                        <td className="mono">{part.replacement_numbers || '-'}</td>
+                        <td style={{ fontSize: 12, color: 'var(--text-dim)' }}>{[part.usage, part.remarks].filter(Boolean).join(' - ') || '-'}</td>
+                        <td><div className="row-actions">
+                          <button className="row-btn" onClick={() => copyText(part.part_number)}>Copy</button>
+                          {part.price_url && <button className="row-btn" onClick={() => window.open(part.price_url, '_blank', 'noopener')}>Price</button>}
+                        </div></td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
