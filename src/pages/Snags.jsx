@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
 import { fetchAllRows } from '../lib/supabase/fetchAllRows'
+import { filterByVehicleOptions } from '../lib/ipc/optionCodes'
 import {
   addSelectedIpcPart,
   ipcBranchOptions,
@@ -393,6 +394,10 @@ export default function Snags() {
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [ipcParts, setIpcParts] = useState([])
   const [ipcLoading, setIpcLoading] = useState(false)
+  const activeOptionCodes = activeVehicle?.option_codes || []
+  const applicableIpcParts = useMemo(() =>
+    filterByVehicleOptions(ipcParts, activeOptionCodes),
+    [ipcParts, activeOptionCodes])
 
   const fetchLogs = useCallback(async () => {
     if (!activeVehicle) return
@@ -521,7 +526,7 @@ export default function Snags() {
         onCancel={() => setView('list')}
         saving={saving}
         lastOdometer={lastOdometer}
-        ipcParts={ipcParts}
+        ipcParts={applicableIpcParts}
         ipcLoading={ipcLoading}
       />
     </div>
@@ -547,7 +552,7 @@ export default function Snags() {
         onCancel={() => setView('list')}
         saving={saving}
         lastOdometer={lastOdometer}
-        ipcParts={ipcParts}
+        ipcParts={applicableIpcParts}
         ipcLoading={ipcLoading}
       />
     </div>

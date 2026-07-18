@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
 import { vehicleRenewals, worstRenewalStatus } from '../lib/calc/renewals'
+import { buildOptionCodeCandidates } from '../lib/ipc/optionCodes'
+import { fetchAllRows } from '../lib/supabase/fetchAllRows'
 
 const today = () => new Date().toISOString().split('T')[0]
 const RENEWAL_BADGE = { overdue: 'badge-red', soon: 'badge-amber', ok: 'badge-green' }
@@ -15,12 +17,43 @@ const EMPTY_FORM = {
   fuel_tank_capacity: '', oil_capacity_litres: '', oil_spec: '',
   gearbox_code: '', tyre_size: '', battery_spec: '', coolant_spec: '', obd_notes: '',
   insurance_expiry: '', inspection_expiry: '', licence_expiry: '', insurance_note: '',
+  option_codes: [],
   notes: '',
 }
 
-function VehicleForm({ initial = EMPTY_FORM, onSave, onCancel, saving }) {
-  const [form, setForm] = useState({ ...EMPTY_FORM, ...initial })
+function VehicleForm({
+  initial = EMPTY_FORM,
+  onSave,
+  onCancel,
+  saving,
+  optionCandidates = [],
+  optionCodesLoading = false,
+  showOptionCodes = false,
+}) {
+  const [form, setForm] = useState({
+    ...EMPTY_FORM,
+    ...initial,
+    option_codes: Array.isArray(initial?.option_codes) ? initial.option_codes : [],
+  })
+  const [optionSearch, setOptionSearch] = useState('')
   const set = (field, value) => setForm(f => ({ ...f, [field]: value }))
+  const selectedOptionCodes = useMemo(() =>
+    new Set((form.option_codes || []).map(code => String(code).toUpperCase())),
+    [form.option_codes])
+  const filteredOptionCandidates = useMemo(() => {
+    const q = optionSearch.trim().toLowerCase()
+    if (!q) return optionCandidates
+    return optionCandidates.filter(option =>
+      option.code.toLowerCase().includes(q) ||
+      option.label.toLowerCase().includes(q))
+  }, [optionCandidates, optionSearch])
+  const toggleOptionCode = (code) => setForm(f => {
+    const normalized = String(code).toUpperCase()
+    const current = new Set((f.option_codes || []).map(value => String(value).toUpperCase()))
+    if (current.has(normalized)) current.delete(normalized)
+    else current.add(normalized)
+    return { ...f, option_codes: [...current].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })) }
+  })
 
   const handleSubmit = (e) => { e.preventDefault(); onSave(form) }
 
@@ -173,6 +206,50 @@ function VehicleForm({ initial = EMPTY_FORM, onSave, onCancel, saving }) {
         <label>Insurance / Policy Note</label>
         <input value={form.insurance_note} onChange={e => set('insurance_note', e.target.value)} placeholder="provider · policy number" />
       </div>
+      {showOptionCodes && (
+        <>
+          <div className="form-section-title">Installed Mercedes Option Codes</div>
+          <div className="option-code-panel">
+            <div className="form-row-2">
+              <div className="form-group">
+                <label>Search option codes</label>
+                <input value={optionSearch} onChange={e => setOptionSearch(e.target.value)} placeholder="580, air conditioning, rain sensor..." />
+              </div>
+              <div className="form-group">
+                <label>Selected</label>
+                <input value={`${(form.option_codes || []).length} codes`} readOnly />
+              </div>
+            </div>
+            {optionCodesLoading ? (
+              <p className="page-sub">Loading IPC option codes...</p>
+            ) : optionCandidates.length === 0 ? (
+              <p className="page-sub">No IPC option rules found for this vehicle yet.</p>
+            ) : (
+              <>
+                <div className="row-actions" style={{ marginBottom: 8 }}>
+                  <button type="button" className="row-btn" onClick={() => set('option_codes', [])}>Clear all</button>
+                </div>
+                <div className="option-code-grid">
+                  {filteredOptionCandidates.map(option => (
+                    <label key={option.code} className="option-code-choice">
+                      <input
+                        type="checkbox"
+                        checked={selectedOptionCodes.has(option.code)}
+                        onChange={() => toggleOptionCode(option.code)}
+                      />
+                      <span className="option-code-copy">
+                        <strong className="mono">{option.code}</strong>
+                        <span>{option.label}</span>
+                        <small>{option.count} IPC rules</small>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </>
+      )}
 
       <div className="form-group">
         <label>Notes</label>
@@ -190,6 +267,7 @@ function VehicleForm({ initial = EMPTY_FORM, onSave, onCancel, saving }) {
 }
 
 function VehicleDetail({ vehicle, onEdit, onBack }) {
+  const optionCodes = Array.isArray(vehicle.option_codes) ? vehicle.option_codes : []
   const specs = [
     { label: 'Engine Code',    value: vehicle.engine_code },
     { label: 'Engine',         value: vehicle.engine_description },
@@ -231,6 +309,14 @@ function VehicleDetail({ vehicle, onEdit, onBack }) {
           </div>
         ))}
       </div>
+      {optionCodes.length > 0 && (
+        <div className="vehicle-option-summary">
+          <div className="spec-label" style={{ marginBottom: 8 }}>Installed Option Codes</div>
+          <div className="row-actions" style={{ flexWrap: 'wrap', gap: 6 }}>
+            {optionCodes.map(code => <span key={code} className="badge">{code}</span>)}
+          </div>
+        </div>
+      )}
       {(() => {
         const renewals = vehicleRenewals(vehicle, today())
         if (!renewals.length) return null
@@ -262,12 +348,43 @@ export default function Fleet() {
   const { vehicles, refreshVehicles, selectVehicle } = useVehicle()
   const [view, setView] = useState('list')
   const [selected, setSelected] = useState(null)
+  const [optionCandidates, setOptionCandidates] = useState([])
+  const [optionCodesLoading, setOptionCodesLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
   const clean = (form) => Object.fromEntries(
-    Object.entries(form).map(([k, v]) => [k, v === '' ? null : v])
+    Object.entries(form).map(([k, v]) => {
+      if (k === 'option_codes') {
+        return [k, (v || []).map(code => String(code).trim().toUpperCase()).filter(Boolean)]
+      }
+      return [k, v === '' ? null : v]
+    })
   )
+
+  const loadOptionCandidates = useCallback(async (vehicle) => {
+    if (!vehicle?.id) {
+      setOptionCandidates([])
+      return
+    }
+    setOptionCodesLoading(true)
+    const { data: catalog } = await supabase
+      .from('ipc_catalogs')
+      .select('id')
+      .eq('vehicle_id', vehicle.id)
+      .maybeSingle()
+    if (!catalog) {
+      setOptionCandidates([])
+      setOptionCodesLoading(false)
+      return
+    }
+    const { data, error } = await fetchAllRows(() => supabase
+      .from('ipc_parts')
+      .select('usage, remarks, name')
+      .eq('catalog_id', catalog.id))
+    setOptionCandidates(error ? [] : buildOptionCodeCandidates(data || []))
+    setOptionCodesLoading(false)
+  }, [])
 
   const handleAdd = async (form) => {
     setSaving(true); setError(null)
@@ -289,7 +406,12 @@ export default function Fleet() {
     await refreshVehicles(); setView('list')
   }
 
-  const openDetail = (vehicle) => { setSelected(vehicle); selectVehicle(vehicle); setView('detail') }
+  const openDetail = (vehicle) => {
+    setSelected(vehicle)
+    selectVehicle(vehicle)
+    setView('detail')
+    loadOptionCandidates(vehicle)
+  }
 
   const td = today()
   const renewalsDue = vehicles.filter(v => ['soon', 'overdue'].includes(worstRenewalStatus(v, td))).length
@@ -306,13 +428,28 @@ export default function Fleet() {
     <div className="page">
       <div className="page-header"><h2>Edit Vehicle</h2><p className="page-sub">{selected?.name}</p></div>
       {error && <div className="form-error">{error}</div>}
-      <VehicleForm initial={selected} onSave={handleEdit} onCancel={() => setView('detail')} saving={saving} />
+      <VehicleForm
+        initial={selected}
+        onSave={handleEdit}
+        onCancel={() => setView('detail')}
+        saving={saving}
+        optionCandidates={optionCandidates}
+        optionCodesLoading={optionCodesLoading}
+        showOptionCodes
+      />
     </div>
   )
 
   if (view === 'detail' && selected) return (
     <div className="page">
-      <VehicleDetail vehicle={selected} onEdit={() => setView('edit')} onBack={() => setView('list')} />
+      <VehicleDetail
+        vehicle={selected}
+        onEdit={() => {
+          setView('edit')
+          loadOptionCandidates(selected)
+        }}
+        onBack={() => setView('list')}
+      />
       <div style={{ marginTop: 32 }}>
         <button className="btn-danger" onClick={() => handleArchive(selected)}>Archive Vehicle</button>
       </div>

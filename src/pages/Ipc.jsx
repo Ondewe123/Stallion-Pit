@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
 import { filterParts, groupOptions } from '../lib/ipc/search'
+import { filterByVehicleOptions } from '../lib/ipc/optionCodes'
 import { isCurrentVehicleRequest, scopeVehicleLoad } from '../lib/ipc/vehicleScope'
 import { fetchAllRows } from '../lib/supabase/fetchAllRows'
 
@@ -116,7 +117,11 @@ export default function Ipc() {
   })
   const catalogForActiveVehicle = scoped.catalog
   const diagramsForActiveVehicle = scoped.diagrams
-  const partsForActiveVehicle = scoped.parts
+  const rawPartsForActiveVehicle = scoped.parts
+  const activeOptionCodes = activeVehicle?.option_codes || []
+  const partsForActiveVehicle = useMemo(() =>
+    filterByVehicleOptions(rawPartsForActiveVehicle, activeOptionCodes),
+    [rawPartsForActiveVehicle, activeOptionCodes])
   const errorForActiveVehicle = scoped.error
 
   const groups = useMemo(() => groupOptions(diagramsForActiveVehicle), [diagramsForActiveVehicle])
@@ -148,7 +153,7 @@ export default function Ipc() {
         <h2>IPC</h2>
         <p className="page-sub">
           {activeVehicle.name}{activeVehicle.vin ? ` - VIN ${activeVehicle.vin}` : ''}
-          {catalogForActiveVehicle ? ` - ${diagramsForActiveVehicle.length} diagrams - ${partsForActiveVehicle.length} parts` : ''}
+          {catalogForActiveVehicle ? ` - ${diagramsForActiveVehicle.length} diagrams - ${partsForActiveVehicle.length} applicable parts` : ''}
         </p>
       </div>
       {errorForActiveVehicle && <div className="form-error">{errorForActiveVehicle}</div>}

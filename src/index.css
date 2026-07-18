@@ -645,6 +645,10 @@ input::placeholder { color: var(--text-dim); }
   border-radius: 3px;
 }
 .vehicle-notes p { font-size: 13px; color: var(--text-mid); line-height: 1.7; }
+.vehicle-option-summary {
+  margin-top: 22px;
+  margin-bottom: 20px;
+}
 
 /* Vehicle form */
 .vehicle-form { max-width: 900px; }
@@ -681,6 +685,49 @@ input::placeholder { color: var(--text-dim); }
   font-size: 12px;
   margin-bottom: 16px;
   font-family: var(--font-mono);
+}
+.option-code-panel {
+  margin-bottom: 20px;
+}
+.option-code-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+  max-height: 360px;
+  overflow: auto;
+  padding-right: 4px;
+}
+.option-code-choice {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 10px;
+  align-items: flex-start;
+  background: var(--charcoal);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 10px;
+  cursor: pointer;
+}
+.option-code-choice:hover {
+  border-color: var(--gold-dim);
+}
+.option-code-choice input {
+  width: auto;
+  margin-top: 2px;
+}
+.option-code-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.option-code-copy span {
+  color: var(--text);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.option-code-copy small {
+  color: var(--text-dim);
+  font-size: 10px;
 }
 
 /* ============================================================
