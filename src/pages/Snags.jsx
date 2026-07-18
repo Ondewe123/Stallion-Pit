@@ -72,7 +72,7 @@ function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
   const ipcDiagrams = useMemo(() =>
     ipcDiagramOptions(ipcParts, { group: ipcGroup, branch: ipcBranch }),
     [ipcParts, ipcGroup, ipcBranch])
-  const shownIpcParts = useMemo(() =>
+  const rankedIpcParts = useMemo(() =>
     rankIpcParts(ipcParts, {
       query: ipcQuery,
       snagTitle: form.title,
@@ -82,8 +82,9 @@ function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
       branch: ipcBranch,
       diagramKey: ipcDiagram,
       useSmartContext: smartIpcRank,
-    }).filter(part => !selectedIpcIds.includes(part.id)).slice(0, 30),
+    }).filter(part => !selectedIpcIds.includes(part.id)),
     [ipcParts, ipcQuery, form.title, form.description, form.suspected_system, ipcGroup, ipcBranch, ipcDiagram, smartIpcRank, selectedIpcIds])
+  const shownIpcParts = useMemo(() => rankedIpcParts.slice(0, 40), [rankedIpcParts])
   const useSnagTextSearch = () => {
     const seed = [form.title, form.suspected_system, form.description].filter(Boolean).join(' ')
     setIpcQuery(seed)
@@ -211,6 +212,9 @@ function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
                 disabled={!form.title && !form.description && !form.suspected_system}>
                 Use snag text
               </button>
+              <span className="badge">
+                {rankedIpcParts.length} match{rankedIpcParts.length === 1 ? '' : 'es'}
+              </span>
             </div>
 
             {selectedIpcParts.map(link => {
@@ -219,7 +223,9 @@ function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
                 <div key={link.ipc_part_id} className="row-actions" style={{ justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
                   <div style={{ minWidth: 0 }}>
                     <strong className="mono">{part.part_number}</strong>
-                    <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>{part.name}</div>
+                    <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>
+                      {[part.name, part.diagram_title].filter(Boolean).join(' - ')}
+                    </div>
                   </div>
                   <div className="row-actions">
                     <input type="number" min="0.01" step="0.01" value={link.quantity_needed || 1}
@@ -250,6 +256,9 @@ function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
                         <td className="primary">
                           <span className="mono">{part.part_number}</span>
                           <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>{part.name}</div>
+                          <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>
+                            {[part.catalog_group && `Group ${part.catalog_group}/${part.subgroup || '-'}`, part.diagram_title].filter(Boolean).join(' - ')}
+                          </div>
                           {part.replacement_numbers && (
                             <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>Replaces: {part.replacement_numbers}</div>
                           )}
@@ -260,9 +269,9 @@ function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
                           {part.usage && <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>{part.usage}</div>}
                         </td>
                         <td>
-                          <button type="button" className="row-btn"
+                          <button type="button" className="row-btn vehicle-tab-active"
                             onClick={() => setSelectedIpcParts(parts => addSelectedIpcPart(parts, part))}>
-                            Add
+                            Add part
                           </button>
                         </td>
                       </tr>
