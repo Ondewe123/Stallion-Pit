@@ -3,7 +3,7 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import Ipc, { filterVisibleDiagrams } from './Ipc'
+import Ipc, { buildSnagFromIpcPart, buildSnagIpcPartLink, filterVisibleDiagrams } from './Ipc'
 
 const mockState = vi.hoisted(() => ({
   activeVehicle: null,
@@ -130,5 +130,44 @@ describe('filterVisibleDiagrams', () => {
       branch: 'engine',
       hideEmptyDiagrams: true,
     }).map(d => d.id)).toEqual(['filled'])
+  })
+})
+
+describe('buildSnagIpcPartLink', () => {
+  it('creates a default quantity link row for assigning an IPC part to a snag', () => {
+    expect(buildSnagIpcPartLink({ id: 'ipc-1' }, 'snag-1')).toEqual({
+      snag_id: 'snag-1',
+      ipc_part_id: 'ipc-1',
+      quantity_needed: 1,
+    })
+  })
+
+  it('returns null when the part or snag id is missing', () => {
+    expect(buildSnagIpcPartLink(null, 'snag-1')).toBeNull()
+    expect(buildSnagIpcPartLink({ id: 'ipc-1' }, '')).toBeNull()
+  })
+})
+
+describe('buildSnagFromIpcPart', () => {
+  it('creates a useful default snag from an IPC part', () => {
+    expect(buildSnagFromIpcPart({
+      part_number: 'A2022674310',
+      name: 'HANDLE',
+      catalog_group: '26',
+      subgroup: '030',
+      diagram_title: 'FLOOR SHIFT',
+    }, 'vehicle-1', '2026-07-19')).toEqual({
+      vehicle_id: 'vehicle-1',
+      reported_at: '2026-07-19',
+      title: 'Replace HANDLE',
+      description: 'IPC part A2022674310 - Group 26/030 - FLOOR SHIFT',
+      severity: 'Medium',
+      status: 'Open',
+    })
+  })
+
+  it('returns null without a vehicle or part', () => {
+    expect(buildSnagFromIpcPart(null, 'vehicle-1', '2026-07-19')).toBeNull()
+    expect(buildSnagFromIpcPart({ part_number: 'A1' }, '', '2026-07-19')).toBeNull()
   })
 })

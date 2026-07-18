@@ -10,6 +10,35 @@ const copyText = async (text) => {
   try { await navigator.clipboard.writeText(text) } catch { /* non-fatal */ }
 }
 
+export function buildSnagIpcPartLink(part, snagId) {
+  if (!part?.id || !snagId) return null
+  return {
+    snag_id: snagId,
+    ipc_part_id: part.id,
+    quantity_needed: 1,
+  }
+}
+
+const today = () => new Date().toISOString().split('T')[0]
+
+export function buildSnagFromIpcPart(part, vehicleId, reportedAt = today()) {
+  if (!part?.part_number || !vehicleId) return null
+  const group = [part.catalog_group, part.subgroup].filter(Boolean).join('/')
+  const context = [
+    `IPC part ${part.part_number}`,
+    group && `Group ${group}`,
+    part.diagram_title,
+  ].filter(Boolean).join(' - ')
+  return {
+    vehicle_id: vehicleId,
+    reported_at: reportedAt,
+    title: `Replace ${part.name || part.part_number}`,
+    description: context,
+    severity: 'Medium',
+    status: 'Open',
+  }
+}
+
 export function filterVisibleDiagrams(diagrams, { group = '', branch = '', hideEmptyDiagrams = false } = {}) {
   return (diagrams || []).filter(d =>
     (!group || d.catalog_group === group) &&
@@ -35,6 +64,12 @@ export default function Ipc() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [errorVehicleId, setErrorVehicleId] = useState('')
+  const [snags, setSnags] = useState([])
+  const [snagsLoading, setSnagsLoading] = useState(false)
+  const [assignSelections, setAssignSelections] = useState({})
+  const [assigningPartId, setAssigningPartId] = useState('')
+  const [creatingPartId, setCreatingPartId] = useState('')
+  const [assignMessage, setAssignMessage] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -106,6 +141,79 @@ export default function Ipc() {
     return () => { cancelled = true }
   }, [activeVehicleId])
 
+  useEffect(() => {
+    let cancelled = false
+    const fetchSnags = async () => {
+      if (!activeVehicleId) {
+        setSnags([])
+        return
+      }
+      setSnagsLoading(true)
+      const { data, error: snagError } = await supabase
+        .from('snags')
+        .select('id, title, status, severity, reported_at')
+        .eq('vehicle_id', activeVehicleId)
+        .order('reported_at', { ascending: false })
+      if (cancelled) return
+      setSnags(snagError ? [] : data || [])
+      setSnagsLoading(false)
+    }
+    fetchSnags()
+    return () => { cancelled = true }
+  }, [activeVehicleId])
+
+  const assignPartToSnag = async (part) => {
+    const snagId = assignSelections[part.id]
+    const row = buildSnagIpcPartLink(part, snagId)
+    if (!row) {
+      setAssignMessage({ type: 'error', text: 'Choose a snag first.' })
+      return
+    }
+    setAssigningPartId(part.id)
+    setAssignMessage(null)
+    const { error: assignError } = await supabase
+      .from('snag_ipc_parts')
+      .upsert([row], { onConflict: 'snag_id,ipc_part_id', ignoreDuplicates: true })
+    setAssigningPartId('')
+    if (assignError) {
+      setAssignMessage({ type: 'error', text: assignError.message })
+      return
+    }
+    const snag = snags.find(item => item.id === snagId)
+    setAssignMessage({ type: 'success', text: `${part.part_number} assigned${snag ? ` to ${snag.title}` : ''}.` })
+  }
+
+  const createSnagFromPart = async (part) => {
+    const snag = buildSnagFromIpcPart(part, activeVehicleId)
+    if (!snag) {
+      setAssignMessage({ type: 'error', text: 'Could not create a snag for this part.' })
+      return
+    }
+    setCreatingPartId(part.id)
+    setAssignMessage(null)
+    const { data, error: snagError } = await supabase
+      .from('snags')
+      .insert([snag])
+      .select('id, title, status, severity, reported_at')
+      .single()
+    if (snagError) {
+      setCreatingPartId('')
+      setAssignMessage({ type: 'error', text: snagError.message })
+      return
+    }
+    const { error: linkError } = await supabase
+      .from('snag_ipc_parts')
+      .insert([buildSnagIpcPartLink(part, data.id)])
+    setCreatingPartId('')
+    if (linkError) {
+      setAssignMessage({ type: 'error', text: linkError.message })
+      return
+    }
+    setSnags(current => [data, ...current])
+    setAssignSelections(current => ({ ...current, [part.id]: data.id }))
+    setAssignMessage({ type: 'success', text: `Created snag "${data.title}" and linked ${part.part_number}.` })
+  }
+
   const scoped = scopeVehicleLoad({
     activeVehicleId,
     loadedVehicleId,
@@ -157,6 +265,9 @@ export default function Ipc() {
         </p>
       </div>
       {errorForActiveVehicle && <div className="form-error">{errorForActiveVehicle}</div>}
+      {assignMessage && (
+        <div className={assignMessage.type === 'error' ? 'form-error' : 'form-success'}>{assignMessage.text}</div>
+      )}
       {loading ? (
         <div className="placeholder-card"><p>Loading IPC...</p></div>
       ) : !catalogForActiveVehicle ? (
@@ -247,10 +358,43 @@ export default function Ipc() {
                         <td className="mono">{part.quantity || '-'}</td>
                         <td className="mono">{part.replacement_numbers || '-'}</td>
                         <td style={{ fontSize: 12, color: 'var(--text-dim)' }}>{[part.usage, part.remarks].filter(Boolean).join(' - ') || '-'}</td>
-                        <td><div className="row-actions">
-                          <button className="row-btn" onClick={() => copyText(part.part_number)}>Copy</button>
-                          {part.price_url && <button className="row-btn" onClick={() => window.open(part.price_url, '_blank', 'noopener')}>Price</button>}
-                        </div></td>
+                        <td>
+                          <div className="ipc-part-actions">
+                            <div className="row-actions">
+                              <button className="row-btn" onClick={() => copyText(part.part_number)}>Copy</button>
+                              {part.price_url && <button className="row-btn" onClick={() => window.open(part.price_url, '_blank', 'noopener')}>Price</button>}
+                            </div>
+                            <div className="ipc-assign-row">
+                              <select
+                                value={assignSelections[part.id] || ''}
+                                onChange={e => setAssignSelections(current => ({ ...current, [part.id]: e.target.value }))}
+                                disabled={snagsLoading || snags.length === 0}
+                                title="Assign this IPC part to an existing snag"
+                              >
+                                <option value="">{snagsLoading ? 'Loading snags...' : snags.length ? 'Assign to snag...' : 'No snags'}</option>
+                                {snags.map(snag => (
+                                  <option key={snag.id} value={snag.id}>
+                                    {snag.title} ({snag.status})
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                className="row-btn vehicle-tab-active"
+                                onClick={() => assignPartToSnag(part)}
+                                disabled={!assignSelections[part.id] || assigningPartId === part.id}
+                              >
+                                {assigningPartId === part.id ? 'Assigning...' : 'Assign'}
+                              </button>
+                              <button
+                                className="row-btn"
+                                onClick={() => createSnagFromPart(part)}
+                                disabled={creatingPartId === part.id}
+                              >
+                                {creatingPartId === part.id ? 'Creating...' : 'Create snag'}
+                              </button>
+                            </div>
+                          </div>
+                        </td>
                       </tr>
                     ))}</tbody>
                   </table>

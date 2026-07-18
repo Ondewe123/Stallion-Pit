@@ -686,6 +686,16 @@ input::placeholder { color: var(--text-dim); }
   margin-bottom: 16px;
   font-family: var(--font-mono);
 }
+.form-success {
+  background: var(--green-bg);
+  border: 1px solid rgba(42,122,74,0.4);
+  color: #27ae60;
+  border-radius: 3px;
+  padding: 10px 14px;
+  font-size: 12px;
+  margin-bottom: 16px;
+  font-family: var(--font-mono);
+}
 .option-code-panel {
   margin-bottom: 20px;
 }
@@ -958,6 +968,23 @@ input::placeholder { color: var(--text-dim); }
 .row-btn:hover { border-color: var(--gold-dim); color: var(--text); }
 .row-btn-danger { border-color: rgba(192,57,43,0.3); color: var(--red); }
 .row-btn-danger:hover { background: var(--red-bg); border-color: var(--red); }
+
+.ipc-part-actions {
+  display: grid;
+  gap: 6px;
+  min-width: 220px;
+}
+.ipc-assign-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.ipc-assign-row select {
+  min-width: 150px;
+  height: 26px;
+  padding: 2px 8px;
+  font-size: 11px;
+}
 
 .snag-ipc-part-cell {
   display: flex;
