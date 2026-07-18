@@ -28,3 +28,6 @@ Acar Old Records/
 
 # Local DB backups/exports (scripts/backup.mjs)
 backups/
+
+# Local implementation worktrees
+.worktrees/
