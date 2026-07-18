@@ -6,6 +6,7 @@ import { fetchAllRows } from '../lib/supabase/fetchAllRows'
 import { filterByVehicleOptions } from '../lib/ipc/optionCodes'
 import {
   addSelectedIpcPart,
+  collapseSupersededIpcParts,
   ipcBranchOptions,
   ipcDiagramOptions,
   ipcGroupOptions,
@@ -67,13 +68,14 @@ function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
       (initial.conditions && initial.conditions.length)))
 
   const selectedIpcIds = useMemo(() => selectedIpcPartIds(selectedIpcParts), [selectedIpcParts])
-  const ipcGroups = useMemo(() => ipcGroupOptions(ipcParts), [ipcParts])
-  const ipcBranches = useMemo(() => ipcBranchOptions(ipcParts), [ipcParts])
+  const collapsedSourceIpcParts = useMemo(() => collapseSupersededIpcParts(ipcParts), [ipcParts])
+  const ipcGroups = useMemo(() => ipcGroupOptions(collapsedSourceIpcParts), [collapsedSourceIpcParts])
+  const ipcBranches = useMemo(() => ipcBranchOptions(collapsedSourceIpcParts), [collapsedSourceIpcParts])
   const ipcDiagrams = useMemo(() =>
-    ipcDiagramOptions(ipcParts, { group: ipcGroup, branch: ipcBranch }),
-    [ipcParts, ipcGroup, ipcBranch])
+    ipcDiagramOptions(collapsedSourceIpcParts, { group: ipcGroup, branch: ipcBranch }),
+    [collapsedSourceIpcParts, ipcGroup, ipcBranch])
   const rankedIpcParts = useMemo(() =>
-    rankIpcParts(ipcParts, {
+    rankIpcParts(collapsedSourceIpcParts, {
       query: ipcQuery,
       snagTitle: form.title,
       description: form.description,
@@ -83,7 +85,7 @@ function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
       diagramKey: ipcDiagram,
       useSmartContext: smartIpcRank,
     }).filter(part => !selectedIpcIds.includes(part.id)),
-    [ipcParts, ipcQuery, form.title, form.description, form.suspected_system, ipcGroup, ipcBranch, ipcDiagram, smartIpcRank, selectedIpcIds])
+    [collapsedSourceIpcParts, ipcQuery, form.title, form.description, form.suspected_system, ipcGroup, ipcBranch, ipcDiagram, smartIpcRank, selectedIpcIds])
   const shownIpcParts = useMemo(() => rankedIpcParts.slice(0, 40), [rankedIpcParts])
   const useSnagTextSearch = () => {
     const seed = [form.title, form.suspected_system, form.description].filter(Boolean).join(' ')
@@ -226,6 +228,11 @@ function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
                     <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>
                       {[part.name, part.diagram_title].filter(Boolean).join(' - ')}
                     </div>
+                    {part.superseded_numbers?.length > 0 && (
+                      <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>
+                        Replaces older: {part.superseded_numbers.join(', ')}
+                      </div>
+                    )}
                   </div>
                   <div className="row-actions">
                     <input type="number" min="0.01" step="0.01" value={link.quantity_needed || 1}
@@ -260,7 +267,10 @@ function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
                             {[part.catalog_group && `Group ${part.catalog_group}/${part.subgroup || '-'}`, part.diagram_title].filter(Boolean).join(' - ')}
                           </div>
                           {part.replacement_numbers && (
-                            <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>Replaces: {part.replacement_numbers}</div>
+                            <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>Superseded by: {part.replacement_numbers}</div>
+                          )}
+                          {part.superseded_numbers?.length > 0 && (
+                            <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>Replaces older: {part.superseded_numbers.join(', ')}</div>
                           )}
                         </td>
                         <td className="mono">{[part.catalog_group, part.subgroup].filter(Boolean).join('/') || '—'}</td>

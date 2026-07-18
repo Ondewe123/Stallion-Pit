@@ -1,6 +1,7 @@
 const searchableText = (part) => [
   part?.part_number,
   part?.replacement_numbers,
+  ...(part?.superseded_numbers || []),
   part?.name,
   part?.usage,
   part?.remarks,
@@ -102,6 +103,19 @@ const expandedTokens = (value) => {
 }
 
 const diagramKey = (part) => [
+  part?.branch,
+  part?.catalog_group,
+  part?.subgroup,
+  part?.diagram_title,
+].map(value => String(value || '').trim()).join('|')
+
+const normalizePartNumber = (value) =>
+  String(value || '').trim().toUpperCase().replace(/\s+/g, '')
+
+const splitPartNumbers = (value) =>
+  String(value || '').split(/[,\s;/]+/).map(normalizePartNumber).filter(Boolean)
+
+const replacementContextKey = (part) => [
   part?.branch,
   part?.catalog_group,
   part?.subgroup,
@@ -237,6 +251,83 @@ export function rankIpcParts(parts, {
       a.index - b.index
     )
     .map(item => item.part)
+}
+
+export function collapseSupersededIpcParts(parts) {
+  const rows = parts || []
+  const byNumber = new Map()
+  for (const part of rows) {
+    const number = normalizePartNumber(part?.part_number)
+    if (!number) continue
+    const list = byNumber.get(number) || []
+    list.push(part)
+    byNumber.set(number, list)
+  }
+
+  const replacementById = new Map()
+  const predecessorIdsByReplacementId = new Map()
+  for (const part of rows) {
+    const replacements = splitPartNumbers(part?.replacement_numbers)
+    if (!part?.id || replacements.length === 0) continue
+    const context = replacementContextKey(part)
+    const replacement = replacements
+      .flatMap(number => byNumber.get(number) || [])
+      .find(candidate => candidate.id !== part.id && replacementContextKey(candidate) === context)
+    if (!replacement?.id) continue
+    replacementById.set(part.id, replacement.id)
+    const predecessors = predecessorIdsByReplacementId.get(replacement.id) || []
+    predecessors.push(part.id)
+    predecessorIdsByReplacementId.set(replacement.id, predecessors)
+  }
+
+  const partById = new Map(rows.filter(part => part?.id).map(part => [part.id, part]))
+  const rootById = new Map()
+  const rootFor = (part) => {
+    const seen = new Set()
+    let current = part
+    while (current?.id && replacementById.has(current.id) && !seen.has(current.id)) {
+      seen.add(current.id)
+      current = partById.get(replacementById.get(current.id))
+    }
+    return current || part
+  }
+
+  const collapsed = []
+  const emittedRoots = new Set()
+  for (const part of rows) {
+    if (!part?.id) {
+      collapsed.push(part)
+      continue
+    }
+    const root = rootFor(part)
+    if (!root?.id || emittedRoots.has(root.id)) continue
+    emittedRoots.add(root.id)
+
+    const older = []
+    const olderIds = []
+    const visitedPredecessors = new Set()
+    const visitPredecessors = (id) => {
+      for (const predecessorId of predecessorIdsByReplacementId.get(id) || []) {
+        if (visitedPredecessors.has(predecessorId)) continue
+        visitedPredecessors.add(predecessorId)
+        const predecessor = partById.get(predecessorId)
+        if (!predecessor) continue
+        visitPredecessors(predecessorId)
+        const number = normalizePartNumber(predecessor.part_number)
+        if (number && number !== normalizePartNumber(root.part_number) && !older.includes(number)) older.push(number)
+        if (!olderIds.includes(predecessorId)) olderIds.push(predecessorId)
+      }
+    }
+    visitPredecessors(root.id)
+
+    collapsed.push(older.length ? {
+      ...root,
+      superseded_numbers: older,
+      superseded_part_ids: olderIds,
+    } : root)
+  }
+
+  return collapsed
 }
 
 export function addSelectedIpcPart(selected, part) {

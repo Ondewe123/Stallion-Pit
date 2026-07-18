@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   addSelectedIpcPart,
+  collapseSupersededIpcParts,
   filterIpcParts,
   groupLabel,
   ipcBranchOptions,
@@ -119,6 +120,63 @@ describe('rankIpcParts', () => {
     })
 
     expect(ranked.map(p => p.id)).toEqual(['ipc-3', 'ipc-5'])
+  })
+})
+
+describe('collapseSupersededIpcParts', () => {
+  it('collapses a replacement chain to the newest part and records older numbers', () => {
+    const parts = [
+      { id: 'old-1', part_number: 'A2024700141', replacement_numbers: 'A2024701041', name: 'SENSOR WITH PUMP' },
+      { id: 'old-2', part_number: 'A2024701041', replacement_numbers: 'A2024702241', name: 'SENSOR WITH PUMP' },
+      { id: 'new', part_number: 'A2024702241', replacement_numbers: '', name: 'SENSOR WITH PUMP LEFT' },
+      { id: 'other', part_number: 'A2024700241', replacement_numbers: '', name: 'SENSOR' },
+    ]
+
+    expect(collapseSupersededIpcParts(parts)).toEqual([
+      {
+        id: 'new',
+        part_number: 'A2024702241',
+        replacement_numbers: '',
+        name: 'SENSOR WITH PUMP LEFT',
+        superseded_numbers: ['A2024700141', 'A2024701041'],
+        superseded_part_ids: ['old-1', 'old-2'],
+      },
+      { id: 'other', part_number: 'A2024700241', replacement_numbers: '', name: 'SENSOR' },
+    ])
+  })
+
+  it('keeps superseded numbers searchable on the newest part', () => {
+    const parts = collapseSupersededIpcParts([
+      { id: 'old', part_number: 'A2024700141', replacement_numbers: 'A2024701041', name: 'SENSOR WITH PUMP' },
+      { id: 'new', part_number: 'A2024701041', replacement_numbers: '', name: 'SENSOR WITH PUMP' },
+    ])
+
+    expect(filterIpcParts(parts, 'A2024700141').map(part => part.id)).toEqual(['new'])
+  })
+
+  it('does not collapse unrelated parts with the same replacement number', () => {
+    const parts = [
+      { id: 'a', catalog_group: '47', subgroup: '015', part_number: 'A1', replacement_numbers: 'A3', name: 'SENSOR' },
+      { id: 'b', catalog_group: '47', subgroup: '030', part_number: 'A2', replacement_numbers: 'A3', name: 'FILTER' },
+      { id: 'c', catalog_group: '47', subgroup: '015', part_number: 'A3', replacement_numbers: '', name: 'SENSOR' },
+    ]
+
+    expect(collapseSupersededIpcParts(parts).map(part => ({
+      id: part.id,
+      superseded_numbers: part.superseded_numbers,
+    }))).toEqual([
+      { id: 'c', superseded_numbers: ['A1'] },
+      { id: 'b', superseded_numbers: undefined },
+    ])
+  })
+
+  it('keeps circular replacement data visible without looping forever', () => {
+    const parts = [
+      { id: 'a', part_number: 'A1', replacement_numbers: 'A2', name: 'SENSOR' },
+      { id: 'b', part_number: 'A2', replacement_numbers: 'A1', name: 'SENSOR' },
+    ]
+
+    expect(collapseSupersededIpcParts(parts).map(part => part.id)).toEqual(['a', 'b'])
   })
 })
 
