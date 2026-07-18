@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
 import { filterParts, groupOptions } from '../lib/ipc/search'
@@ -19,44 +19,56 @@ export default function Ipc() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const fetchData = useCallback(async () => {
-    if (!activeVehicle) return
-    setLoading(true)
-    setError(null)
-    setCatalog(null)
-    setDiagrams([])
-    setParts([])
-    setSelectedDiagramId('')
+  useEffect(() => {
+    let cancelled = false
+    const vehicleId = activeVehicle?.id
 
-    const { data: cat, error: catErr } = await supabase
-      .from('ipc_catalogs').select('*').eq('vehicle_id', activeVehicle.id).maybeSingle()
-    if (catErr) {
-      setError(catErr.message)
+    const fetchData = async () => {
+      if (!vehicleId) {
+        setLoading(false)
+        return
+      }
+
+      setLoading(true)
+      setError(null)
+      setCatalog(null)
+      setDiagrams([])
+      setParts([])
+      setSelectedDiagramId('')
+
+      const { data: cat, error: catErr } = await supabase
+        .from('ipc_catalogs').select('*').eq('vehicle_id', vehicleId).maybeSingle()
+      if (cancelled) return
+      if (catErr) {
+        setError(catErr.message)
+        setLoading(false)
+        return
+      }
+      if (!cat) {
+        setLoading(false)
+        return
+      }
+
+      const [{ data: diagramRows, error: diagramErr }, { data: partRows, error: partErr }] = await Promise.all([
+        supabase.from('ipc_diagrams').select('*').eq('catalog_id', cat.id).order('catalog_group').order('subgroup'),
+        supabase.from('ipc_parts').select('*').eq('catalog_id', cat.id).order('catalog_group').order('subgroup').order('item_no'),
+      ])
+      if (cancelled) return
+      if (diagramErr || partErr) {
+        setError(diagramErr?.message || partErr?.message)
+        setLoading(false)
+        return
+      }
+      setCatalog(cat)
+      setDiagrams(diagramRows || [])
+      setParts(partRows || [])
+      setSelectedDiagramId(diagramRows?.[0]?.id || '')
       setLoading(false)
-      return
-    }
-    if (!cat) {
-      setLoading(false)
-      return
     }
 
-    const [{ data: diagramRows, error: diagramErr }, { data: partRows, error: partErr }] = await Promise.all([
-      supabase.from('ipc_diagrams').select('*').eq('catalog_id', cat.id).order('catalog_group').order('subgroup'),
-      supabase.from('ipc_parts').select('*').eq('catalog_id', cat.id).order('catalog_group').order('subgroup').order('item_no'),
-    ])
-    if (diagramErr || partErr) {
-      setError(diagramErr?.message || partErr?.message)
-      setLoading(false)
-      return
-    }
-    setCatalog(cat)
-    setDiagrams(diagramRows || [])
-    setParts(partRows || [])
-    setSelectedDiagramId(diagramRows?.[0]?.id || '')
-    setLoading(false)
-  }, [activeVehicle])
-
-  useEffect(() => { fetchData() }, [fetchData])
+    fetchData()
+    return () => { cancelled = true }
+  }, [activeVehicle?.id])
 
   const groups = useMemo(() => groupOptions(diagrams), [diagrams])
   const branches = useMemo(() => [...new Set(diagrams.map(d => d.branch).filter(Boolean))].sort(), [diagrams])
