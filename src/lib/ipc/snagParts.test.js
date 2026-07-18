@@ -66,6 +66,20 @@ const ipcParts = [
     usage: '',
     remarks: '',
   },
+  {
+    id: 'ipc-5',
+    branch: 'body_chassis_44V',
+    catalog_group: '54',
+    group_name: '54',
+    subgroup: '091',
+    diagram_title: 'HEADLAMP CABLE HARNESS',
+    item_no: '10',
+    part_number: 'A0085453728',
+    replacement_numbers: '',
+    name: 'CLUTCH WINDSHIELD WASHER PUMP;2-POLE',
+    usage: '',
+    remarks: '',
+  },
 ]
 
 describe('filterIpcParts', () => {
@@ -75,6 +89,10 @@ describe('filterIpcParts', () => {
     expect(filterIpcParts(ipcParts, 'mounting').map(p => p.id)).toEqual(['ipc-1'])
     expect(filterIpcParts(ipcParts, 'automatic').map(p => p.id)).toEqual(['ipc-2'])
     expect(filterIpcParts(ipcParts, 'm 6x20').map(p => p.id)).toEqual(['ipc-2'])
+  })
+
+  it('treats windscreen and windshield as equivalent search terms', () => {
+    expect(filterIpcParts(ipcParts, 'windscreen').map(p => p.id)).toEqual(['ipc-3', 'ipc-5'])
   })
 })
 
@@ -92,6 +110,15 @@ describe('rankIpcParts', () => {
     expect(rankIpcParts(ipcParts, { query: 'glass', group: '67' }).map(p => p.id)).toEqual(['ipc-3'])
     expect(rankIpcParts(ipcParts, { branch: 'engine' }).map(p => p.id)).toEqual(['ipc-1'])
     expect(rankIpcParts(ipcParts, { diagramKey: 'body|86|040|WIPER SYSTEM' }).map(p => p.id)).toEqual(['ipc-4'])
+  })
+
+  it('uses windscreen synonyms when searching and ranking sparse IPC rows', () => {
+    const ranked = rankIpcParts(ipcParts, {
+      query: 'windscreen',
+      snagTitle: 'Cracked windscreen',
+    })
+
+    expect(ranked.map(p => p.id)).toEqual(['ipc-3', 'ipc-5'])
   })
 })
 

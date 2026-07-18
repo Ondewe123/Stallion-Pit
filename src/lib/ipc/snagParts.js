@@ -84,8 +84,22 @@ const SYSTEM_GROUP_HINTS = [
   { terms: ['tyre', 'tire', 'wheel', 'rim'], groups: ['40'] },
 ]
 
+const SEARCH_SYNONYMS = {
+  windscreen: ['windshield'],
+  windshield: ['windscreen'],
+}
+
 const tokenize = (value) =>
   String(value || '').toLowerCase().match(/[a-z0-9]+/g) || []
+
+const expandedTokens = (value) => {
+  const tokens = tokenize(value)
+  const expanded = new Set(tokens)
+  for (const token of tokens) {
+    for (const synonym of SEARCH_SYNONYMS[token] || []) expanded.add(synonym)
+  }
+  return [...expanded]
+}
 
 const diagramKey = (part) => [
   part?.branch,
@@ -144,9 +158,13 @@ const scorePart = (part, { queryTokens, contextTokens, preferredGroups }) => {
 }
 
 export function filterIpcParts(parts, query) {
-  const q = String(query || '').trim().toLowerCase()
-  if (!q) return parts || []
-  return (parts || []).filter(part => searchableText(part).includes(q))
+  const queryTokens = tokenize(query)
+  if (queryTokens.length === 0) return parts || []
+  const alternatives = queryTokens.map(token => [token, ...(SEARCH_SYNONYMS[token] || [])])
+  return (parts || []).filter(part => {
+    const text = searchableText(part)
+    return alternatives.every(group => group.some(token => text.includes(token)))
+  })
 }
 
 export function groupLabel(code, sourceName) {
@@ -190,9 +208,9 @@ export function rankIpcParts(parts, {
   diagramKey: selectedDiagramKey = '',
   useSmartContext = true,
 } = {}) {
-  const queryTokens = tokenize(query)
+  const queryTokens = expandedTokens(query)
   const context = useSmartContext ? [snagTitle, description, suspectedSystem].filter(Boolean).join(' ') : ''
-  const contextTokens = tokenize(context)
+  const contextTokens = expandedTokens(context)
   const preferredGroups = inferredGroups(context)
   const hasSearch = queryTokens.length > 0
 
@@ -202,7 +220,10 @@ export function rankIpcParts(parts, {
       if (branch && part.branch !== branch) return false
       if (selectedDiagramKey && diagramKey(part) !== selectedDiagramKey) return false
       if (!hasSearch) return true
-      return queryTokens.every(token => searchableText(part).includes(token))
+      return tokenize(query).every(token => {
+        const text = searchableText(part)
+        return [token, ...(SEARCH_SYNONYMS[token] || [])].some(candidate => text.includes(candidate))
+      })
     })
     .map((part, index) => ({
       part,
