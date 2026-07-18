@@ -24,6 +24,7 @@
     catalog: '44V',
     model: '202018',
     language: 'en',
+    aggregateText: 'Body And Chasis',
     missingGroups: [
       '55', '56', '57', '58', '59',
       '60', '61', '62', '63', '64', '65', '66', '67', '68', '69',
@@ -89,22 +90,6 @@
     return `body_chassis_${u.searchParams.get('catalog') || CONFIG.catalog}`
   }
 
-  const makeGroupUrl = (group) => {
-    const u = new URL(location.href)
-    u.searchParams.set('brand', CONFIG.brand)
-    u.searchParams.set('vin', CONFIG.vin)
-    u.searchParams.set('function', 'getParts')
-    u.searchParams.set('class', '1')
-    u.searchParams.set('catalog', CONFIG.catalog)
-    u.searchParams.set('aggtype', 'FG')
-    u.searchParams.set('model', CONFIG.model)
-    u.searchParams.set('group', group)
-    u.searchParams.delete('subgroup')
-    u.searchParams.set('VinAction', 'Choose')
-    u.searchParams.set('language', CONFIG.language)
-    return u.toString()
-  }
-
   const fetchDoc = async (url) => {
     let lastError = null
     for (let attempt = 0; attempt <= CONFIG.maxRetries; attempt += 1) {
@@ -143,21 +128,65 @@
     return img ? absoluteUrl(img.getAttribute('src') || img.src) : ''
   }
 
-  const discoverDiagramUrlsForGroup = async (group) => {
-    const groupUrl = makeGroupUrl(group)
-    const doc = await fetchDoc(groupUrl)
-    const urls = new Map()
+  const urlsFromDoc = (doc) => {
+    const urls = []
     for (const a of doc.querySelectorAll('a[href]')) {
-      const href = absoluteUrl(a.getAttribute('href'))
-      const u = new URL(href)
+      urls.push({
+        url: absoluteUrl(a.getAttribute('href')),
+        text: clean(a.textContent),
+      })
+    }
+    for (const node of doc.querySelectorAll('[onclick]')) {
+      const onclick = node.getAttribute('onclick') || ''
+      for (const match of onclick.matchAll(/['"]([^'"]+\?[^'"]+)['"]/g)) {
+        urls.push({
+          url: absoluteUrl(match[1]),
+          text: clean(node.textContent),
+        })
+      }
+    }
+    return urls
+  }
+
+  const discoverGroupListUrls = () => {
+    const urls = urlsFromDoc(document)
+      .filter(link => {
+        const u = new URL(link.url)
+        const isGroupsPage = u.searchParams.get('function') === 'getGroups'
+        const isWantedAggregate = !CONFIG.aggregateText || link.text.toLowerCase().includes(CONFIG.aggregateText.toLowerCase())
+        return isGroupsPage && isWantedAggregate
+      })
+      .map(link => link.url)
+
+    if (new URL(location.href).searchParams.get('function') === 'getGroups') urls.push(location.href)
+    return [...new Set(urls)]
+  }
+
+  const collectDiagramUrlsFromDoc = (doc, allowedGroups) => {
+    const urls = new Map()
+    for (const link of urlsFromDoc(doc)) {
+      const u = new URL(link.url)
+      if (u.searchParams.get('function') !== 'getParts') continue
       const linkGroup = u.searchParams.get('group')
       const subgroup = u.searchParams.get('subgroup')
-      if (linkGroup === group && subgroup) urls.set(`${linkGroup}|${subgroup}|${href}`, href)
+      if (allowedGroups.has(linkGroup) && subgroup) urls.set(`${linkGroup}|${subgroup}|${link.url}`, link.url)
+    }
+    return urls
+  }
+
+  const discoverAllDiagramUrls = async () => {
+    const allowedGroups = new Set(CONFIG.missingGroups)
+    const urls = new Map()
+    const groupListUrls = discoverGroupListUrls()
+    const samples = []
+
+    for (const url of groupListUrls) {
+      const doc = url === location.href ? document : await fetchDoc(url)
+      for (const [key, value] of collectDiagramUrlsFromDoc(doc, allowedGroups)) urls.set(key, value)
+      samples.push(...urlsFromDoc(doc).slice(0, 12).map(link => ({ text: link.text, url: link.url })))
     }
 
-    const groupPageSubgroup = new URL(groupUrl).searchParams.get('subgroup')
-    if (groupPageSubgroup) urls.set(`${group}|${groupPageSubgroup}|${groupUrl}`, groupUrl)
-    return [...urls.values()]
+    return { urls: [...urls.values()], groupListUrls, samples }
   }
 
   const parsePartRows = (doc, diagram, sourceUrl, imageUrl) => {
@@ -236,9 +265,21 @@
 
   console.log('[ILcats IPC] Starting missing group scrape', CONFIG)
 
+  const discovered = await discoverAllDiagramUrls()
+  const diagramUrlsByGroup = new Map()
+  for (const url of discovered.urls) {
+    const group = new URL(url).searchParams.get('group')
+    if (!diagramUrlsByGroup.has(group)) diagramUrlsByGroup.set(group, [])
+    diagramUrlsByGroup.get(group).push(url)
+  }
+  debug.group_list_urls = discovered.groupListUrls
+  debug.discovered_diagram_links = discovered.urls.length
+  debug.link_samples = discovered.samples
+  console.log(`[ILcats IPC] discovered ${discovered.urls.length} real diagram links from ${discovered.groupListUrls.length} group-list pages`)
+
   for (const group of CONFIG.missingGroups) {
     try {
-      const diagramUrls = await discoverDiagramUrlsForGroup(group)
+      const diagramUrls = diagramUrlsByGroup.get(group) || []
       console.log(`[ILcats IPC] group ${group}: ${diagramUrls.length} diagram links`)
       const groupDebug = { group, diagram_links: diagramUrls.length, diagrams: [] }
 
