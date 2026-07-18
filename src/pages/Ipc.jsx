@@ -1,0 +1,179 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useVehicle } from '../contexts/VehicleContext'
+import { supabase } from '../lib/supabase'
+import { filterParts, groupOptions } from '../lib/ipc/search'
+
+const copyText = async (text) => {
+  try { await navigator.clipboard.writeText(text) } catch { /* non-fatal */ }
+}
+
+export default function Ipc() {
+  const { activeVehicle } = useVehicle()
+  const [catalog, setCatalog] = useState(null)
+  const [diagrams, setDiagrams] = useState([])
+  const [parts, setParts] = useState([])
+  const [selectedDiagramId, setSelectedDiagramId] = useState('')
+  const [query, setQuery] = useState('')
+  const [group, setGroup] = useState('')
+  const [branch, setBranch] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  const fetchData = useCallback(async () => {
+    if (!activeVehicle) return
+    setLoading(true)
+    setError(null)
+    setCatalog(null)
+    setDiagrams([])
+    setParts([])
+    setSelectedDiagramId('')
+
+    const { data: cat, error: catErr } = await supabase
+      .from('ipc_catalogs').select('*').eq('vehicle_id', activeVehicle.id).maybeSingle()
+    if (catErr) {
+      setError(catErr.message)
+      setLoading(false)
+      return
+    }
+    if (!cat) {
+      setLoading(false)
+      return
+    }
+
+    const [{ data: diagramRows, error: diagramErr }, { data: partRows, error: partErr }] = await Promise.all([
+      supabase.from('ipc_diagrams').select('*').eq('catalog_id', cat.id).order('catalog_group').order('subgroup'),
+      supabase.from('ipc_parts').select('*').eq('catalog_id', cat.id).order('catalog_group').order('subgroup').order('item_no'),
+    ])
+    if (diagramErr || partErr) {
+      setError(diagramErr?.message || partErr?.message)
+      setLoading(false)
+      return
+    }
+    setCatalog(cat)
+    setDiagrams(diagramRows || [])
+    setParts(partRows || [])
+    setSelectedDiagramId(diagramRows?.[0]?.id || '')
+    setLoading(false)
+  }, [activeVehicle])
+
+  useEffect(() => { fetchData() }, [fetchData])
+
+  const groups = useMemo(() => groupOptions(diagrams), [diagrams])
+  const branches = useMemo(() => [...new Set(diagrams.map(d => d.branch).filter(Boolean))].sort(), [diagrams])
+  const selectedDiagram = diagrams.find(d => d.id === selectedDiagramId) || null
+  const shownParts = useMemo(() => filterParts(parts, {
+    query, diagramId: query ? '' : selectedDiagramId, group, branch,
+  }), [parts, query, selectedDiagramId, group, branch])
+  const visibleDiagrams = diagrams.filter(d =>
+    (!group || d.catalog_group === group) && (!branch || d.branch === branch)
+  )
+
+  if (!activeVehicle) return (
+    <div className="page">
+      <div className="page-header"><h2>IPC</h2></div>
+      <div className="placeholder-card"><p>Select a vehicle to view its parts catalog</p></div>
+    </div>
+  )
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <h2>IPC</h2>
+        <p className="page-sub">
+          {activeVehicle.name}{activeVehicle.vin ? ` - VIN ${activeVehicle.vin}` : ''}
+          {catalog ? ` - ${diagrams.length} diagrams - ${parts.length} parts` : ''}
+        </p>
+      </div>
+      {error && <div className="form-error">{error}</div>}
+      {loading ? (
+        <div className="placeholder-card"><p>Loading IPC...</p></div>
+      ) : !catalog ? (
+        <div className="placeholder-card"><p>No IPC imported for this vehicle yet.</p></div>
+      ) : (
+        <>
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="form-row-2">
+              <div className="form-group">
+                <label>Search parts</label>
+                <input value={query} onChange={e => setQuery(e.target.value)} placeholder="part number, replacement, name, usage, remarks" />
+              </div>
+              <div className="form-group">
+                <label>Group</label>
+                <select value={group} onChange={e => { setGroup(e.target.value); setSelectedDiagramId('') }}>
+                  <option value="">All groups</option>
+                  {groups.map(g => <option key={g.value} value={g.value}>{g.label} ({g.count})</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="form-row-2">
+              <div className="form-group">
+                <label>Branch</label>
+                <select value={branch} onChange={e => { setBranch(e.target.value); setSelectedDiagramId('') }}>
+                  <option value="">All branches</option>
+                  {branches.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Catalog</label>
+                <input value={`${catalog.source_name} - ${catalog.model_code || ''} ${catalog.engine_code || ''} ${catalog.gearbox_code || ''}`.trim()} readOnly />
+              </div>
+            </div>
+          </div>
+
+          <div className="ipc-layout">
+            <div className="table-wrapper">
+              <table className="data-table">
+                <thead><tr><th>Diagram</th><th>Parts</th></tr></thead>
+                <tbody>{visibleDiagrams.map(d => (
+                  <tr key={d.id} onClick={() => setSelectedDiagramId(d.id)} style={{ cursor: 'pointer' }}>
+                    <td className={selectedDiagramId === d.id ? 'primary' : ''}>
+                      {d.catalog_group}/{d.subgroup}
+                      <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{d.diagram_title}</div>
+                    </td>
+                    <td className="mono">{d.part_count}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+
+            <div>
+              {selectedDiagram && (
+                <div className="card" style={{ marginBottom: 16 }}>
+                  <div className="card-label">{selectedDiagram.catalog_group}/{selectedDiagram.subgroup}</div>
+                  <h3 style={{ marginTop: 4 }}>{selectedDiagram.diagram_title}</h3>
+                  {selectedDiagram.image_url && (
+                    <div style={{ marginTop: 12, background: '#fff', borderRadius: 4, overflow: 'auto' }}>
+                      <img src={selectedDiagram.image_url} alt={selectedDiagram.diagram_title} style={{ display: 'block', maxWidth: '100%', height: 'auto', margin: '0 auto' }} />
+                    </div>
+                  )}
+                  {selectedDiagram.source_url && (
+                    <button className="row-btn" style={{ marginTop: 10 }} onClick={() => window.open(selectedDiagram.source_url, '_blank', 'noopener')}>Open source</button>
+                  )}
+                </div>
+              )}
+              <div className="table-wrapper">
+                <table className="data-table">
+                  <thead><tr><th>Item</th><th>Part Number</th><th>Name</th><th>Qty</th><th>Replacement</th><th>Notes</th><th></th></tr></thead>
+                  <tbody>{shownParts.map(part => (
+                    <tr key={part.id}>
+                      <td className="mono">{part.item_no || '-'}</td>
+                      <td className="mono primary">{part.part_number}</td>
+                      <td>{part.name}</td>
+                      <td className="mono">{part.quantity || '-'}</td>
+                      <td className="mono">{part.replacement_numbers || '-'}</td>
+                      <td style={{ fontSize: 12, color: 'var(--text-dim)' }}>{[part.usage, part.remarks].filter(Boolean).join(' - ') || '-'}</td>
+                      <td><div className="row-actions">
+                        <button className="row-btn" onClick={() => copyText(part.part_number)}>Copy</button>
+                        {part.price_url && <button className="row-btn" onClick={() => window.open(part.price_url, '_blank', 'noopener')}>Price</button>}
+                      </div></td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
