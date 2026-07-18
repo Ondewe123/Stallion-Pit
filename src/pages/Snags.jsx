@@ -2,7 +2,14 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
-import { addSelectedIpcPart, filterIpcParts, selectedIpcPartIds } from '../lib/ipc/snagParts'
+import {
+  addSelectedIpcPart,
+  ipcBranchOptions,
+  ipcDiagramOptions,
+  ipcGroupOptions,
+  rankIpcParts,
+  selectedIpcPartIds,
+} from '../lib/ipc/snagParts'
 
 const SEVERITIES = ['Low', 'Medium', 'High', 'Critical']
 const STATUSES = ['Open', 'In Progress', 'Resolved', "Won't Fix"]
@@ -43,6 +50,10 @@ function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
   const [form, setForm] = useState({ ...EMPTY_FORM, ...initial, conditions: initial.conditions || [] })
   const [selectedIpcParts, setSelectedIpcParts] = useState(initial.ipcParts || [])
   const [ipcQuery, setIpcQuery] = useState('')
+  const [ipcGroup, setIpcGroup] = useState('')
+  const [ipcBranch, setIpcBranch] = useState('')
+  const [ipcDiagram, setIpcDiagram] = useState('')
+  const [smartIpcRank, setSmartIpcRank] = useState(true)
   const set = (field, value) => setForm(f => ({ ...f, [field]: value }))
   const toggleCondition = (c) => setForm(f => {
     const has = (f.conditions || []).includes(c)
@@ -53,9 +64,35 @@ function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
       initial.corrective_action || initial.verification_method || initial.is_recurring ||
       (initial.conditions && initial.conditions.length)))
 
+  const selectedIpcIds = useMemo(() => selectedIpcPartIds(selectedIpcParts), [selectedIpcParts])
+  const ipcGroups = useMemo(() => ipcGroupOptions(ipcParts), [ipcParts])
+  const ipcBranches = useMemo(() => ipcBranchOptions(ipcParts), [ipcParts])
+  const ipcDiagrams = useMemo(() =>
+    ipcDiagramOptions(ipcParts, { group: ipcGroup, branch: ipcBranch }),
+    [ipcParts, ipcGroup, ipcBranch])
   const shownIpcParts = useMemo(() =>
-    filterIpcParts(ipcParts, ipcQuery).filter(part => !selectedIpcPartIds(selectedIpcParts).includes(part.id)).slice(0, 8),
-    [ipcParts, ipcQuery, selectedIpcParts])
+    rankIpcParts(ipcParts, {
+      query: ipcQuery,
+      snagTitle: form.title,
+      description: form.description,
+      suspectedSystem: form.suspected_system,
+      group: ipcGroup,
+      branch: ipcBranch,
+      diagramKey: ipcDiagram,
+      useSmartContext: smartIpcRank,
+    }).filter(part => !selectedIpcIds.includes(part.id)).slice(0, 30),
+    [ipcParts, ipcQuery, form.title, form.description, form.suspected_system, ipcGroup, ipcBranch, ipcDiagram, smartIpcRank, selectedIpcIds])
+  const useSnagTextSearch = () => {
+    const seed = [form.title, form.suspected_system, form.description].filter(Boolean).join(' ')
+    setIpcQuery(seed)
+  }
+  const clearIpcFilters = () => {
+    setIpcQuery('')
+    setIpcGroup('')
+    setIpcBranch('')
+    setIpcDiagram('')
+    setSmartIpcRank(true)
+  }
   const setIpcQuantity = (ipcPartId, quantity) => setSelectedIpcParts(parts =>
     parts.map(link => link.ipc_part_id === ipcPartId ? { ...link, quantity_needed: quantity } : link))
   const removeIpcPart = (ipcPartId) => setSelectedIpcParts(parts =>
@@ -108,17 +145,70 @@ function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <div className="card-label">IPC parts needed</div>
+        <div className="row-actions" style={{ justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
+          <div>
+            <div className="card-label">IPC parts needed</div>
+            <p className="page-sub" style={{ marginTop: 6 }}>
+              {selectedIpcParts.length ? `${selectedIpcParts.length} selected` : 'Smart-ranked from this snag'}
+            </p>
+          </div>
+          {ipcParts.length > 0 && (
+            <button type="button" className="row-btn" onClick={clearIpcFilters}>Reset picker</button>
+          )}
+        </div>
         {ipcLoading ? (
           <p className="page-sub" style={{ marginTop: 8 }}>Loading IPC parts...</p>
         ) : ipcParts.length === 0 ? (
           <p className="page-sub" style={{ marginTop: 8 }}>No IPC catalog is available for this vehicle yet.</p>
         ) : (
           <>
-            <div className="form-group" style={{ marginTop: 10 }}>
-              <label>Search IPC</label>
-              <input value={ipcQuery} onChange={e => setIpcQuery(e.target.value)}
-                placeholder="part number, replacement, name, usage, remarks" />
+            <div className="form-row-2" style={{ marginTop: 10 }}>
+              <div className="form-group">
+                <label>Search IPC</label>
+                <input value={ipcQuery} onChange={e => setIpcQuery(e.target.value)}
+                  placeholder="windscreen glass, steering pump, engine mount..." />
+              </div>
+              <div className="form-group">
+                <label>Branch</label>
+                <select value={ipcBranch} onChange={e => { setIpcBranch(e.target.value); setIpcDiagram('') }}>
+                  <option value="">All branches</option>
+                  {ipcBranches.map(option => (
+                    <option key={option.value} value={option.value}>{option.label} ({option.count})</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="form-row-2">
+              <div className="form-group">
+                <label>Group</label>
+                <select value={ipcGroup} onChange={e => { setIpcGroup(e.target.value); setIpcDiagram('') }}>
+                  <option value="">All groups</option>
+                  {ipcGroups.map(option => (
+                    <option key={option.value} value={option.value}>{option.label} ({option.count})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Diagram</label>
+                <select value={ipcDiagram} onChange={e => setIpcDiagram(e.target.value)}>
+                  <option value="">All diagrams</option>
+                  {ipcDiagrams.map(option => (
+                    <option key={option.value} value={option.value}>{option.label} ({option.count})</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="row-actions" style={{ flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+              <label className="ipc-checkbox" style={{ margin: 0 }}>
+                <input type="checkbox" checked={smartIpcRank} onChange={e => setSmartIpcRank(e.target.checked)} />
+                Smart rank from snag
+              </label>
+              <button type="button" className="row-btn" onClick={useSnagTextSearch}
+                disabled={!form.title && !form.description && !form.suspected_system}>
+                Use snag text
+              </button>
             </div>
 
             {selectedIpcParts.map(link => {
@@ -139,13 +229,46 @@ function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
               )
             })}
 
-            {ipcQuery && shownIpcParts.length === 0 && <p className="page-sub">No matching IPC parts.</p>}
-            {shownIpcParts.map(part => (
-              <button type="button" key={part.id} className="row-btn" style={{ display: 'block', width: '100%', textAlign: 'left', marginBottom: 6 }}
-                onClick={() => setSelectedIpcParts(parts => addSelectedIpcPart(parts, part))}>
-                <span className="mono">{part.part_number}</span> {part.name}
-              </button>
-            ))}
+            {shownIpcParts.length === 0 ? (
+              <p className="page-sub">No matching IPC parts.</p>
+            ) : (
+              <div className="table-wrapper" style={{ marginTop: 10 }}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Part</th>
+                      <th>Group</th>
+                      <th>Diagram</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shownIpcParts.map(part => (
+                      <tr key={part.id}>
+                        <td className="primary">
+                          <span className="mono">{part.part_number}</span>
+                          <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>{part.name}</div>
+                          {part.replacement_numbers && (
+                            <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>Replaces: {part.replacement_numbers}</div>
+                          )}
+                        </td>
+                        <td className="mono">{[part.catalog_group, part.subgroup].filter(Boolean).join('/') || '—'}</td>
+                        <td>
+                          {part.diagram_title || '—'}
+                          {part.usage && <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>{part.usage}</div>}
+                        </td>
+                        <td>
+                          <button type="button" className="row-btn"
+                            onClick={() => setSelectedIpcParts(parts => addSelectedIpcPart(parts, part))}>
+                            Add
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -275,7 +398,7 @@ export default function Snags() {
     setLoading(true)
     const { data } = await supabase
       .from('snags')
-      .select('*, snag_ipc_parts(*, ipc_parts(id, part_number, replacement_numbers, quantity, name, usage, remarks, source_url, price_url))')
+      .select('*, snag_ipc_parts(*, ipc_parts(id, diagram_id, branch, catalog_group, group_name, subgroup, diagram_title, item_no, part_number, replacement_numbers, quantity, name, usage, remarks, source_url, price_url))')
       .eq('vehicle_id', activeVehicle.id)
       .order('reported_at', { ascending: false })
     setLogs(data || [])
@@ -299,7 +422,7 @@ export default function Snags() {
     }
     const { data } = await supabase
       .from('ipc_parts')
-      .select('id, part_number, replacement_numbers, quantity, name, usage, remarks, source_url, price_url')
+      .select('id, diagram_id, branch, catalog_group, group_name, subgroup, diagram_title, item_no, part_number, replacement_numbers, quantity, name, usage, remarks, source_url, price_url')
       .eq('catalog_id', catalog.id)
       .order('part_number')
       .limit(5000)
