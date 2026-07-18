@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
+import { addSelectedIpcPart, filterIpcParts, selectedIpcPartIds } from '../lib/ipc/snagParts'
 
 const SEVERITIES = ['Low', 'Medium', 'High', 'Critical']
 const STATUSES = ['Open', 'In Progress', 'Resolved', "Won't Fix"]
@@ -38,8 +39,10 @@ const EMPTY_FORM = {
   notes: '',
 }
 
-function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer }) {
+function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer, ipcParts = [], ipcLoading = false }) {
   const [form, setForm] = useState({ ...EMPTY_FORM, ...initial, conditions: initial.conditions || [] })
+  const [selectedIpcParts, setSelectedIpcParts] = useState(initial.ipcParts || [])
+  const [ipcQuery, setIpcQuery] = useState('')
   const set = (field, value) => setForm(f => ({ ...f, [field]: value }))
   const toggleCondition = (c) => setForm(f => {
     const has = (f.conditions || []).includes(c)
@@ -50,7 +53,15 @@ function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
       initial.corrective_action || initial.verification_method || initial.is_recurring ||
       (initial.conditions && initial.conditions.length)))
 
-  const handleSubmit = (e) => { e.preventDefault(); onSave(form) }
+  const shownIpcParts = useMemo(() =>
+    filterIpcParts(ipcParts, ipcQuery).filter(part => !selectedIpcPartIds(selectedIpcParts).includes(part.id)).slice(0, 8),
+    [ipcParts, ipcQuery, selectedIpcParts])
+  const setIpcQuantity = (ipcPartId, quantity) => setSelectedIpcParts(parts =>
+    parts.map(link => link.ipc_part_id === ipcPartId ? { ...link, quantity_needed: quantity } : link))
+  const removeIpcPart = (ipcPartId) => setSelectedIpcParts(parts =>
+    parts.filter(link => link.ipc_part_id !== ipcPartId))
+
+  const handleSubmit = (e) => { e.preventDefault(); onSave({ ...form, ipcParts: selectedIpcParts }) }
 
   return (
     <form onSubmit={handleSubmit} className="snag-form">
@@ -94,6 +105,49 @@ function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
         <textarea value={form.description} onChange={e => set('description', e.target.value)}
           placeholder="What's wrong — symptoms, when it happens..." rows={2}
           style={{ resize: 'vertical' }} />
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card-label">IPC parts needed</div>
+        {ipcLoading ? (
+          <p className="page-sub" style={{ marginTop: 8 }}>Loading IPC parts...</p>
+        ) : ipcParts.length === 0 ? (
+          <p className="page-sub" style={{ marginTop: 8 }}>No IPC catalog is available for this vehicle yet.</p>
+        ) : (
+          <>
+            <div className="form-group" style={{ marginTop: 10 }}>
+              <label>Search IPC</label>
+              <input value={ipcQuery} onChange={e => setIpcQuery(e.target.value)}
+                placeholder="part number, replacement, name, usage, remarks" />
+            </div>
+
+            {selectedIpcParts.map(link => {
+              const part = link.part || link.ipc_parts || {}
+              return (
+                <div key={link.ipc_part_id} className="row-actions" style={{ justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <strong className="mono">{part.part_number}</strong>
+                    <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>{part.name}</div>
+                  </div>
+                  <div className="row-actions">
+                    <input type="number" min="0.01" step="0.01" value={link.quantity_needed || 1}
+                      onChange={e => setIpcQuantity(link.ipc_part_id, e.target.value)}
+                      title="Quantity needed" style={{ width: 80 }} />
+                    <button type="button" className="row-btn row-btn-danger" onClick={() => removeIpcPart(link.ipc_part_id)}>Remove</button>
+                  </div>
+                </div>
+              )
+            })}
+
+            {ipcQuery && shownIpcParts.length === 0 && <p className="page-sub">No matching IPC parts.</p>}
+            {shownIpcParts.map(part => (
+              <button type="button" key={part.id} className="row-btn" style={{ display: 'block', width: '100%', textAlign: 'left', marginBottom: 6 }}
+                onClick={() => setSelectedIpcParts(parts => addSelectedIpcPart(parts, part))}>
+                <span className="mono">{part.part_number}</span> {part.name}
+              </button>
+            ))}
+          </>
+        )}
       </div>
 
       <button type="button" className="row-btn" style={{ marginBottom: 12 }} onClick={() => setShowDiag(s => !s)}>
@@ -213,13 +267,15 @@ export default function Snags() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [ipcParts, setIpcParts] = useState([])
+  const [ipcLoading, setIpcLoading] = useState(false)
 
   const fetchLogs = useCallback(async () => {
     if (!activeVehicle) return
     setLoading(true)
     const { data } = await supabase
       .from('snags')
-      .select('*')
+      .select('*, snag_ipc_parts(*, ipc_parts(id, part_number, replacement_numbers, quantity, name, usage, remarks, source_url, price_url))')
       .eq('vehicle_id', activeVehicle.id)
       .order('reported_at', { ascending: false })
     setLogs(data || [])
@@ -228,18 +284,61 @@ export default function Snags() {
 
   useEffect(() => { fetchLogs() }, [fetchLogs])
 
+  const fetchIpcParts = useCallback(async () => {
+    if (!activeVehicle) return
+    setIpcLoading(true)
+    setIpcParts([])
+    const { data: catalog, error: catalogError } = await supabase
+      .from('ipc_catalogs')
+      .select('id')
+      .eq('vehicle_id', activeVehicle.id)
+      .maybeSingle()
+    if (catalogError || !catalog) {
+      setIpcLoading(false)
+      return
+    }
+    const { data } = await supabase
+      .from('ipc_parts')
+      .select('id, part_number, replacement_numbers, quantity, name, usage, remarks, source_url, price_url')
+      .eq('catalog_id', catalog.id)
+      .order('part_number')
+      .limit(5000)
+    setIpcParts(data || [])
+    setIpcLoading(false)
+  }, [activeVehicle])
+
+  useEffect(() => { fetchIpcParts() }, [fetchIpcParts])
+
   const clean = (form) => {
     const out = { ...form }
+    delete out.ipcParts
+    delete out.snag_ipc_parts
     Object.keys(out).forEach(k => { if (out[k] === '') out[k] = null })
     if (Array.isArray(out.conditions) && out.conditions.length === 0) out.conditions = null
     out.vehicle_id = activeVehicle.id
     return out
   }
 
+  const syncIpcParts = async (snagId, links = []) => {
+    const { error: deleteError } = await supabase.from('snag_ipc_parts').delete().eq('snag_id', snagId)
+    if (deleteError) return deleteError
+    const rows = links.map(link => ({
+      snag_id: snagId,
+      ipc_part_id: link.ipc_part_id,
+      quantity_needed: Number(link.quantity_needed || 1),
+      note: link.note || null,
+    }))
+    if (rows.length === 0) return null
+    const { error: insertError } = await supabase.from('snag_ipc_parts').insert(rows)
+    return insertError
+  }
+
   const handleAdd = async (form) => {
     setSaving(true); setError(null)
-    const { error } = await supabase.from('snags').insert([clean(form)])
+    const { data, error } = await supabase.from('snags').insert([clean(form)]).select('id').single()
     if (error) { setError(error.message); setSaving(false); return }
+    const linkError = await syncIpcParts(data.id, form.ipcParts)
+    if (linkError) { setError(linkError.message); setSaving(false); return }
     await fetchLogs(); setSaving(false); setView('list')
   }
 
@@ -247,6 +346,8 @@ export default function Snags() {
     setSaving(true); setError(null)
     const { error } = await supabase.from('snags').update(clean(form)).eq('id', selected.id)
     if (error) { setError(error.message); setSaving(false); return }
+    const linkError = await syncIpcParts(selected.id, form.ipcParts)
+    if (linkError) { setError(linkError.message); setSaving(false); return }
     await fetchLogs(); setSaving(false); setView('list')
   }
 
@@ -287,7 +388,14 @@ export default function Snags() {
         <p className="page-sub">{activeVehicle.name} · {activeVehicle.year} {activeVehicle.make} {activeVehicle.model}</p>
       </div>
       {error && <div className="form-error">{error}</div>}
-      <SnagForm onSave={handleAdd} onCancel={() => setView('list')} saving={saving} lastOdometer={lastOdometer} />
+      <SnagForm
+        onSave={handleAdd}
+        onCancel={() => setView('list')}
+        saving={saving}
+        lastOdometer={lastOdometer}
+        ipcParts={ipcParts}
+        ipcLoading={ipcLoading}
+      />
     </div>
   )
 
@@ -305,11 +413,14 @@ export default function Snags() {
           resolved_at: selected.resolved_at?.split('T')[0] || selected.resolved_at || '',
           conditions: selected.conditions || [],
           is_recurring: selected.is_recurring ?? false,
+          ipcParts: (selected.snag_ipc_parts || []).map(link => ({ ...link, part: link.ipc_parts })),
         }}
         onSave={handleEdit}
         onCancel={() => setView('list')}
         saving={saving}
         lastOdometer={lastOdometer}
+        ipcParts={ipcParts}
+        ipcLoading={ipcLoading}
       />
     </div>
   )
@@ -391,6 +502,14 @@ export default function Snags() {
                     {log.resolved_at && (
                       <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>resolved {log.resolved_at}</div>
                     )}
+                    {(log.snag_ipc_parts || []).length > 0 && (
+                      <div style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 3 }}>
+                        IPC: {(log.snag_ipc_parts || []).map(link => {
+                          const part = link.ipc_parts || {}
+                          return `${part.part_number}${link.quantity_needed ? ` x${Number(link.quantity_needed).toLocaleString()}` : ''}`
+                        }).join(', ')}
+                      </div>
+                    )}
                   </td>
                   <td>
                     <span className={`badge ${SEVERITY_BADGE[log.severity] || 'badge'}`}>{log.severity}</span>
@@ -406,7 +525,15 @@ export default function Snags() {
                         <button className="row-btn" onClick={() => handleMarkFixed(log)}>Fix</button>
                       )}
                       {ACTIVE_STATUSES.includes(log.status) && (
-                        <button className="row-btn" onClick={() => navigate('/work-orders', { state: { newFromSnag: { id: log.id, title: log.title } } })}>→ Job</button>
+                        <button className="row-btn" onClick={() => navigate('/work-orders', {
+                          state: {
+                            newFromSnag: {
+                              id: log.id,
+                              title: log.title,
+                              ipcParts: log.snag_ipc_parts || [],
+                            },
+                          },
+                        })}>→ Job</button>
                       )}
                       <button className="row-btn" onClick={() => { setSelected(log); setView('edit') }}>Edit</button>
                       {deleteConfirm === log.id ? (
