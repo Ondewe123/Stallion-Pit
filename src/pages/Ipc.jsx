@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
 import { filterParts, groupOptions } from '../lib/ipc/search'
