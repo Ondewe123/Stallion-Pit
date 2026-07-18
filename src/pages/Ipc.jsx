@@ -3,22 +3,10 @@ import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
 import { filterParts, groupOptions } from '../lib/ipc/search'
 import { isCurrentVehicleRequest, scopeVehicleLoad } from '../lib/ipc/vehicleScope'
+import { fetchAllRows } from '../lib/supabase/fetchAllRows'
 
 const copyText = async (text) => {
   try { await navigator.clipboard.writeText(text) } catch { /* non-fatal */ }
-}
-
-const PAGE_SIZE = 1000
-
-export async function fetchAllRows(queryFactory) {
-  const rows = []
-  for (let from = 0; ; from += PAGE_SIZE) {
-    const to = from + PAGE_SIZE - 1
-    const { data, error } = await queryFactory().range(from, to)
-    if (error) return { data: rows, error }
-    rows.push(...(data || []))
-    if (!data || data.length < PAGE_SIZE) return { data: rows, error: null }
-  }
 }
 
 export function filterVisibleDiagrams(diagrams, { group = '', branch = '', hideEmptyDiagrams = false } = {}) {

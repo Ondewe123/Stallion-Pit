@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
+import { fetchAllRows } from '../lib/supabase/fetchAllRows'
 import {
   addSelectedIpcPart,
   ipcBranchOptions,
@@ -420,12 +421,16 @@ export default function Snags() {
       setIpcLoading(false)
       return
     }
-    const { data } = await supabase
+    const { data, error } = await fetchAllRows(() => supabase
       .from('ipc_parts')
       .select('id, diagram_id, branch, catalog_group, group_name, subgroup, diagram_title, item_no, part_number, replacement_numbers, quantity, name, usage, remarks, source_url, price_url')
       .eq('catalog_id', catalog.id)
-      .order('part_number')
-      .limit(5000)
+      .order('part_number'))
+    if (error) {
+      setIpcParts([])
+      setIpcLoading(false)
+      return
+    }
     setIpcParts(data || [])
     setIpcLoading(false)
   }, [activeVehicle])
