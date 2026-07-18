@@ -867,6 +867,10 @@ input::placeholder { color: var(--text-dim); }
 
 .ipc-diagram-card {
   margin-bottom: 0;
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 32px);
+  overflow: auto;
 }
 
 .ipc-diagram-image {
@@ -924,6 +928,10 @@ input::placeholder { color: var(--text-dim); }
 @media (max-width: 1200px) {
   .ipc-detail-pane {
     grid-template-columns: 1fr;
+  }
+  .ipc-diagram-card {
+    position: static;
+    max-height: none;
   }
 }
 
