@@ -3,7 +3,7 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import Ipc, { fetchAllRows } from './Ipc'
+import Ipc, { fetchAllRows, filterVisibleDiagrams } from './Ipc'
 
 const mockState = vi.hoisted(() => ({
   activeVehicle: null,
@@ -130,5 +130,25 @@ describe('fetchAllRows', () => {
     expect(result.error).toBeNull()
     expect(result.data).toHaveLength(2001)
     expect(ranges).toEqual([[0, 999], [1000, 1999], [2000, 2999]])
+  })
+})
+
+describe('filterVisibleDiagrams', () => {
+  const diagrams = [
+    { id: 'empty', catalog_group: '01', branch: 'engine', part_count: 0 },
+    { id: 'filled', catalog_group: '01', branch: 'engine', part_count: 4 },
+    { id: 'other', catalog_group: '46', branch: 'body', part_count: 2 },
+  ]
+
+  it('hides 0-part diagrams when requested', () => {
+    expect(filterVisibleDiagrams(diagrams, { hideEmptyDiagrams: true }).map(d => d.id)).toEqual(['filled', 'other'])
+  })
+
+  it('keeps group and branch filters with hide-empty enabled', () => {
+    expect(filterVisibleDiagrams(diagrams, {
+      group: '01',
+      branch: 'engine',
+      hideEmptyDiagrams: true,
+    }).map(d => d.id)).toEqual(['filled'])
   })
 })

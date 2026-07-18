@@ -780,6 +780,26 @@ input::placeholder { color: var(--text-dim); }
 }
 @media (max-width: 900px) { .ipc-layout { grid-template-columns: 1fr; } }
 
+.ipc-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-mid);
+  cursor: pointer;
+}
+
+.ipc-checkbox input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+
 .ipc-detail-pane {
   display: grid;
   grid-template-columns: minmax(340px, 0.95fr) minmax(420px, 1.05fr);

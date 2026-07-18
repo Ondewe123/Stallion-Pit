@@ -21,6 +21,14 @@ export async function fetchAllRows(queryFactory) {
   }
 }
 
+export function filterVisibleDiagrams(diagrams, { group = '', branch = '', hideEmptyDiagrams = false } = {}) {
+  return (diagrams || []).filter(d =>
+    (!group || d.catalog_group === group) &&
+    (!branch || d.branch === branch) &&
+    (!hideEmptyDiagrams || Number(d.part_count || 0) > 0)
+  )
+}
+
 export default function Ipc() {
   const { activeVehicle } = useVehicle()
   const activeVehicleId = activeVehicle?.id || ''
@@ -34,6 +42,7 @@ export default function Ipc() {
   const [query, setQuery] = useState('')
   const [group, setGroup] = useState('')
   const [branch, setBranch] = useState('')
+  const [hideEmptyDiagrams, setHideEmptyDiagrams] = useState(true)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [errorVehicleId, setErrorVehicleId] = useState('')
@@ -124,13 +133,19 @@ export default function Ipc() {
 
   const groups = useMemo(() => groupOptions(diagramsForActiveVehicle), [diagramsForActiveVehicle])
   const branches = useMemo(() => [...new Set(diagramsForActiveVehicle.map(d => d.branch).filter(Boolean))].sort(), [diagramsForActiveVehicle])
-  const selectedDiagram = diagramsForActiveVehicle.find(d => d.id === selectedDiagramId) || null
+  const visibleDiagrams = useMemo(() => filterVisibleDiagrams(diagramsForActiveVehicle, {
+    group, branch, hideEmptyDiagrams,
+  }), [diagramsForActiveVehicle, group, branch, hideEmptyDiagrams])
+  const selectedDiagram = visibleDiagrams.find(d => d.id === selectedDiagramId) || null
   const shownParts = useMemo(() => filterParts(partsForActiveVehicle, {
     query, diagramId: query ? '' : selectedDiagramId, group, branch,
   }), [partsForActiveVehicle, query, selectedDiagramId, group, branch])
-  const visibleDiagrams = diagramsForActiveVehicle.filter(d =>
-    (!group || d.catalog_group === group) && (!branch || d.branch === branch)
-  )
+
+  useEffect(() => {
+    if (!catalogForActiveVehicle || !visibleDiagrams.length) return
+    if (visibleDiagrams.some(d => d.id === selectedDiagramId)) return
+    setSelectedDiagramId(visibleDiagrams[0].id)
+  }, [catalogForActiveVehicle, selectedDiagramId, visibleDiagrams])
 
   if (!activeVehicle) return (
     <div className="page">
@@ -182,6 +197,14 @@ export default function Ipc() {
                 <input value={`${catalogForActiveVehicle.source_name} - ${catalogForActiveVehicle.model_code || ''} ${catalogForActiveVehicle.engine_code || ''} ${catalogForActiveVehicle.gearbox_code || ''}`.trim()} readOnly />
               </div>
             </div>
+            <label className="ipc-checkbox">
+              <input
+                type="checkbox"
+                checked={hideEmptyDiagrams}
+                onChange={e => setHideEmptyDiagrams(e.target.checked)}
+              />
+              <span>Hide diagrams with 0 parts</span>
+            </label>
           </div>
 
           <div className="ipc-layout">
