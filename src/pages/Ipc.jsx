@@ -47,6 +47,25 @@ export function filterVisibleDiagrams(diagrams, { group = '', branch = '', hideE
   )
 }
 
+export function diagramSublevelOptions(diagrams) {
+  return (diagrams || [])
+    .map(d => ({
+      value: d.id,
+      label: [d.catalog_group, d.subgroup].filter(Boolean).join('/') + (d.diagram_title ? ` - ${d.diagram_title}` : ''),
+      count: Number(d.part_count || 0),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }))
+}
+
+export function buildPartFilterState({ query = '', selectedDiagramId = '', group = '', branch = '' } = {}) {
+  return {
+    query,
+    diagramId: selectedDiagramId,
+    group,
+    branch,
+  }
+}
+
 export default function Ipc() {
   const { activeVehicle } = useVehicle()
   const activeVehicleId = activeVehicle?.id || ''
@@ -237,10 +256,12 @@ export default function Ipc() {
   const visibleDiagrams = useMemo(() => filterVisibleDiagrams(diagramsForActiveVehicle, {
     group, branch, hideEmptyDiagrams,
   }), [diagramsForActiveVehicle, group, branch, hideEmptyDiagrams])
+  const sublevelOptions = useMemo(() => diagramSublevelOptions(visibleDiagrams), [visibleDiagrams])
   const selectedDiagram = visibleDiagrams.find(d => d.id === selectedDiagramId) || null
-  const shownParts = useMemo(() => filterParts(partsForActiveVehicle, {
-    query, diagramId: query ? '' : selectedDiagramId, group, branch,
-  }), [partsForActiveVehicle, query, selectedDiagramId, group, branch])
+  const partFilterState = useMemo(() => buildPartFilterState({
+    query, selectedDiagramId, group, branch,
+  }), [query, selectedDiagramId, group, branch])
+  const shownParts = useMemo(() => filterParts(partsForActiveVehicle, partFilterState), [partsForActiveVehicle, partFilterState])
 
   useEffect(() => {
     if (!catalogForActiveVehicle || !visibleDiagrams.length) return
@@ -300,6 +321,18 @@ export default function Ipc() {
                 <label>Catalog</label>
                 <input value={`${catalogForActiveVehicle.source_name} - ${catalogForActiveVehicle.model_code || ''} ${catalogForActiveVehicle.engine_code || ''} ${catalogForActiveVehicle.gearbox_code || ''}`.trim()} readOnly />
               </div>
+            </div>
+            <div className="form-group">
+              <label>Sub-level / diagram</label>
+              <select
+                value={selectedDiagramId}
+                onChange={e => setSelectedDiagramId(e.target.value)}
+                disabled={!sublevelOptions.length}
+              >
+                {sublevelOptions.map(option => (
+                  <option key={option.value} value={option.value}>{option.label} ({option.count})</option>
+                ))}
+              </select>
             </div>
             <label className="ipc-checkbox">
               <input

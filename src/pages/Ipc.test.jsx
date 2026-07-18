@@ -3,7 +3,13 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import Ipc, { buildSnagFromIpcPart, buildSnagIpcPartLink, filterVisibleDiagrams } from './Ipc'
+import Ipc, {
+  buildPartFilterState,
+  buildSnagFromIpcPart,
+  buildSnagIpcPartLink,
+  diagramSublevelOptions,
+  filterVisibleDiagrams,
+} from './Ipc'
 
 const mockState = vi.hoisted(() => ({
   activeVehicle: null,
@@ -130,6 +136,34 @@ describe('filterVisibleDiagrams', () => {
       branch: 'engine',
       hideEmptyDiagrams: true,
     }).map(d => d.id)).toEqual(['filled'])
+  })
+})
+
+describe('diagramSublevelOptions', () => {
+  it('builds selectable sub-level labels from filtered diagrams', () => {
+    expect(diagramSublevelOptions([
+      { id: 'diagram-82-030', catalog_group: '82', subgroup: '030', diagram_title: 'INSTRUMENT CLUSTER', part_count: 12 },
+      { id: 'diagram-54-540', catalog_group: '54', subgroup: '540', diagram_title: 'TAIL LAMP CABLE HARNESS', part_count: 3 },
+    ])).toEqual([
+      { value: 'diagram-54-540', label: '54/540 - TAIL LAMP CABLE HARNESS', count: 3 },
+      { value: 'diagram-82-030', label: '82/030 - INSTRUMENT CLUSTER', count: 12 },
+    ])
+  })
+})
+
+describe('buildPartFilterState', () => {
+  it('keeps text search scoped to the selected IPC sub-level', () => {
+    expect(buildPartFilterState({
+      query: 'fuel sensor',
+      selectedDiagramId: 'diagram-47-015',
+      group: '47',
+      branch: 'car',
+    })).toEqual({
+      query: 'fuel sensor',
+      diagramId: 'diagram-47-015',
+      group: '47',
+      branch: 'car',
+    })
   })
 })
 
