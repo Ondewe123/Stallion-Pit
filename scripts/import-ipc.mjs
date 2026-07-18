@@ -34,7 +34,7 @@ if (!vehicleId || !diagramsFile || !partsFile) {
 if (!existsSync(diagramsFile)) fail(`Missing diagrams file: ${diagramsFile}`)
 if (!existsSync(partsFile)) fail(`Missing parts file: ${partsFile}`)
 
-const env = { ...readEnv('.env'), ...readEnv('.env.local') }
+const env = { ...readEnv('.env'), ...readEnv('.env.local'), ...process.env }
 const url = env.VITE_SUPABASE_URL
 const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY
 if (!url) fail('Missing VITE_SUPABASE_URL in .env')
@@ -95,8 +95,13 @@ const { data: catalog, error: catalogError } = await admin
   .single()
 if (catalogError) fail(`Catalog upsert failed: ${catalogError.message}`)
 
-await admin.from('ipc_parts').delete().eq('catalog_id', catalog.id)
-await admin.from('ipc_diagrams').delete().eq('catalog_id', catalog.id)
+const { error: partsDeleteError } = await admin.from('ipc_parts').delete().eq('catalog_id', catalog.id)
+const { error: diagramsDeleteError } = await admin.from('ipc_diagrams').delete().eq('catalog_id', catalog.id)
+const deleteErrors = [
+  partsDeleteError && `ipc_parts delete failed: ${partsDeleteError.message}`,
+  diagramsDeleteError && `ipc_diagrams delete failed: ${diagramsDeleteError.message}`,
+].filter(Boolean)
+if (deleteErrors.length) fail(deleteErrors.join('\n'))
 
 const diagramsForInsert = mapped.diagrams.map(({ _key, ...row }) => ({ ...row, catalog_id: catalog.id }))
 const { data: insertedDiagrams, error: diagramError } = await admin
