@@ -222,23 +222,36 @@ function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
             {selectedIpcParts.map(link => {
               const part = link.part || link.ipc_parts || {}
               return (
-                <div key={link.ipc_part_id} className="row-actions" style={{ justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
-                  <div style={{ minWidth: 0 }}>
-                    <strong className="mono">{part.part_number}</strong>
-                    <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>
-                      {[part.name, part.diagram_title].filter(Boolean).join(' - ')}
-                    </div>
-                    {part.superseded_numbers?.length > 0 && (
-                      <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>
-                        Replaces older: {part.superseded_numbers.join(', ')}
+                <div key={link.ipc_part_id} className="snag-ipc-selected">
+                  {part.diagram_image_url && (
+                    <button
+                      type="button"
+                      className="snag-ipc-preview"
+                      onClick={() => window.open(part.diagram_image_url, '_blank', 'noopener')}
+                      title="Open IPC diagram"
+                    >
+                      <img src={part.diagram_image_url} alt={`${part.diagram_title || part.part_number} diagram`} loading="lazy" />
+                    </button>
+                  )}
+                  <div className="snag-ipc-selected-main">
+                    <div style={{ minWidth: 0 }}>
+                      <strong className="mono">{part.part_number}</strong>
+                      {part.item_no && <span className="badge" style={{ marginLeft: 8 }}>Item {part.item_no}</span>}
+                      <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>
+                        {[part.name, part.diagram_title].filter(Boolean).join(' - ')}
                       </div>
-                    )}
-                  </div>
-                  <div className="row-actions">
-                    <input type="number" min="0.01" step="0.01" value={link.quantity_needed || 1}
-                      onChange={e => setIpcQuantity(link.ipc_part_id, e.target.value)}
-                      title="Quantity needed" style={{ width: 80 }} />
-                    <button type="button" className="row-btn row-btn-danger" onClick={() => removeIpcPart(link.ipc_part_id)}>Remove</button>
+                      {part.superseded_numbers?.length > 0 && (
+                        <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>
+                          Replaces older: {part.superseded_numbers.join(', ')}
+                        </div>
+                      )}
+                    </div>
+                    <div className="row-actions">
+                      <input type="number" min="0.01" step="0.01" value={link.quantity_needed || 1}
+                        onChange={e => setIpcQuantity(link.ipc_part_id, e.target.value)}
+                        title="Quantity needed" style={{ width: 80 }} />
+                      <button type="button" className="row-btn row-btn-danger" onClick={() => removeIpcPart(link.ipc_part_id)}>Remove</button>
+                    </div>
                   </div>
                 </div>
               )
@@ -261,7 +274,22 @@ function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
                     {shownIpcParts.map(part => (
                       <tr key={part.id}>
                         <td className="primary">
-                          <span className="mono">{part.part_number}</span>
+                          <div className="snag-ipc-part-cell">
+                            {part.diagram_image_url && (
+                              <button
+                                type="button"
+                                className="snag-ipc-thumb"
+                                onClick={() => window.open(part.diagram_image_url, '_blank', 'noopener')}
+                                title="Open IPC diagram"
+                              >
+                                <img src={part.diagram_image_url} alt={`${part.diagram_title || part.part_number} diagram`} loading="lazy" />
+                              </button>
+                            )}
+                            <div>
+                              <span className="mono">{part.part_number}</span>
+                              {part.item_no && <span className="badge" style={{ marginLeft: 8 }}>Item {part.item_no}</span>}
+                            </div>
+                          </div>
                           <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>{part.name}</div>
                           <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>
                             {[part.catalog_group && `Group ${part.catalog_group}/${part.subgroup || '-'}`, part.diagram_title].filter(Boolean).join(' - ')}
@@ -423,7 +451,7 @@ export default function Snags() {
     setLoading(true)
     const { data } = await supabase
       .from('snags')
-      .select('*, snag_ipc_parts(*, ipc_parts(id, diagram_id, branch, catalog_group, group_name, subgroup, diagram_title, item_no, part_number, replacement_numbers, quantity, name, usage, remarks, source_url, price_url))')
+      .select('*, snag_ipc_parts(*, ipc_parts(id, diagram_id, branch, catalog_group, group_name, subgroup, diagram_title, item_no, part_number, replacement_numbers, quantity, name, usage, remarks, source_url, diagram_image_url, price_url))')
       .eq('vehicle_id', activeVehicle.id)
       .order('reported_at', { ascending: false })
     setLogs(data || [])
@@ -447,7 +475,7 @@ export default function Snags() {
     }
     const { data, error } = await fetchAllRows(() => supabase
       .from('ipc_parts')
-      .select('id, diagram_id, branch, catalog_group, group_name, subgroup, diagram_title, item_no, part_number, replacement_numbers, quantity, name, usage, remarks, source_url, price_url')
+      .select('id, diagram_id, branch, catalog_group, group_name, subgroup, diagram_title, item_no, part_number, replacement_numbers, quantity, name, usage, remarks, source_url, diagram_image_url, price_url')
       .eq('catalog_id', catalog.id)
       .order('part_number'))
     if (error) {

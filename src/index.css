@@ -959,6 +959,58 @@ input::placeholder { color: var(--text-dim); }
 .row-btn-danger { border-color: rgba(192,57,43,0.3); color: var(--red); }
 .row-btn-danger:hover { background: var(--red-bg); border-color: var(--red); }
 
+.snag-ipc-part-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.snag-ipc-thumb,
+.snag-ipc-preview {
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 3px;
+  padding: 2px;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.snag-ipc-thumb {
+  width: 72px;
+  height: 52px;
+}
+.snag-ipc-preview {
+  width: 156px;
+  height: 104px;
+}
+.snag-ipc-thumb:hover,
+.snag-ipc-preview:hover {
+  border-color: var(--gold-dim);
+}
+.snag-ipc-thumb img,
+.snag-ipc-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.snag-ipc-selected {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--border);
+  background: var(--charcoal);
+  padding: 10px;
+  margin-bottom: 8px;
+}
+.snag-ipc-selected-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+}
+
 /* ============================================================
    Feedback widget — floating capture button + modal
    ============================================================ */
