@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { path: '/fuel',        label: 'Fuel Log',  short: 'Fuel',     icon: '⛽' },
   { path: '/service',     label: 'Service',   short: 'Service',  icon: '🔧' },
   { path: '/parts',       label: 'Parts',     short: 'Parts',    icon: '📦' },
+  { path: '/ipc',         label: 'IPC',       short: 'IPC',      icon: '▦', desktopOnly: true },
   { path: '/maintenance', label: 'Schedule',  short: 'Schedule', icon: '📅' },
   { path: '/templates',   label: 'Templates', short: 'Tpl',      icon: '📋', desktopOnly: true },
   { path: '/work-orders', label: 'Work Orders', short: 'Jobs',   icon: '🛠️', desktopOnly: true },

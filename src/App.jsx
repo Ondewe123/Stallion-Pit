@@ -17,6 +17,7 @@ import Analysis from './pages/Analysis'
 import Documents from './pages/Documents'
 import Backup from './pages/Backup'
 import Feedback from './pages/Feedback'
+import Ipc from './pages/Ipc'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
@@ -46,6 +47,7 @@ function AppRoutes() {
         <Route path="fuel" element={<FuelLog />} />
         <Route path="service" element={<ServiceLog />} />
         <Route path="parts" element={<PartsLog />} />
+        <Route path="ipc" element={<Ipc />} />
         <Route path="maintenance" element={<Maintenance />} />
         <Route path="templates" element={<Templates />} />
         <Route path="work-orders" element={<WorkOrders />} />
