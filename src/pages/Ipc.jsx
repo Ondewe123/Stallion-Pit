@@ -8,6 +8,19 @@ const copyText = async (text) => {
   try { await navigator.clipboard.writeText(text) } catch { /* non-fatal */ }
 }
 
+const PAGE_SIZE = 1000
+
+async function fetchAllRows(queryFactory) {
+  const rows = []
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const to = from + PAGE_SIZE - 1
+    const { data, error } = await queryFactory().range(from, to)
+    if (error) return { data: rows, error }
+    rows.push(...(data || []))
+    if (!data || data.length < PAGE_SIZE) return { data: rows, error: null }
+  }
+}
+
 export default function Ipc() {
   const { activeVehicle } = useVehicle()
   const activeVehicleId = activeVehicle?.id || ''
@@ -62,8 +75,19 @@ export default function Ipc() {
       }
 
       const [{ data: diagramRows, error: diagramErr }, { data: partRows, error: partErr }] = await Promise.all([
-        supabase.from('ipc_diagrams').select('*').eq('catalog_id', cat.id).order('catalog_group').order('subgroup'),
-        supabase.from('ipc_parts').select('*').eq('catalog_id', cat.id).order('catalog_group').order('subgroup').order('item_no'),
+        fetchAllRows(() => supabase
+          .from('ipc_diagrams')
+          .select('*')
+          .eq('catalog_id', cat.id)
+          .order('catalog_group')
+          .order('subgroup')),
+        fetchAllRows(() => supabase
+          .from('ipc_parts')
+          .select('*')
+          .eq('catalog_id', cat.id)
+          .order('catalog_group')
+          .order('subgroup')
+          .order('item_no')),
       ])
       if (!isCurrent()) return
       if (diagramErr || partErr) {
@@ -176,14 +200,14 @@ export default function Ipc() {
               </table>
             </div>
 
-            <div>
+            <div className="ipc-detail-pane">
               {selectedDiagram && (
-                <div className="card" style={{ marginBottom: 16 }}>
+                <div className="card ipc-diagram-card">
                   <div className="card-label">{selectedDiagram.catalog_group}/{selectedDiagram.subgroup}</div>
                   <h3 style={{ marginTop: 4 }}>{selectedDiagram.diagram_title}</h3>
                   {selectedDiagram.image_url && (
-                    <div style={{ marginTop: 12, background: '#fff', borderRadius: 4, overflow: 'auto' }}>
-                      <img src={selectedDiagram.image_url} alt={selectedDiagram.diagram_title} style={{ display: 'block', maxWidth: '100%', height: 'auto', margin: '0 auto' }} />
+                    <div className="ipc-diagram-image">
+                      <img src={selectedDiagram.image_url} alt={selectedDiagram.diagram_title} />
                     </div>
                   )}
                   {selectedDiagram.source_url && (
@@ -191,7 +215,7 @@ export default function Ipc() {
                   )}
                 </div>
               )}
-              <div className="table-wrapper">
+              <div className="table-wrapper ipc-parts-table">
                 <table className="data-table">
                   <thead><tr><th>Item</th><th>Part Number</th><th>Name</th><th>Qty</th><th>Replacement</th><th>Notes</th><th></th></tr></thead>
                   <tbody>{shownParts.map(part => (

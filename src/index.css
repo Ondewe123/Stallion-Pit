@@ -780,6 +780,43 @@ input::placeholder { color: var(--text-dim); }
 }
 @media (max-width: 900px) { .ipc-layout { grid-template-columns: 1fr; } }
 
+.ipc-detail-pane {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ipc-diagram-card {
+  margin-bottom: 0;
+}
+
+.ipc-diagram-image {
+  margin-top: 12px;
+  background: #fff;
+  border-radius: 4px;
+  overflow: auto;
+  max-height: 44vh;
+}
+
+.ipc-diagram-image img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.ipc-parts-table {
+  max-height: 42vh;
+  overflow: auto;
+  border: 1px solid var(--border);
+}
+
+.ipc-parts-table .data-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
 .derived-ppl {
   font-family: var(--font-mono);
   font-size: 12px;
