@@ -18,6 +18,10 @@ describe('parseCsv', () => {
     expect(rows).toHaveLength(2)
     expect(rows[1].diagram_title).toBe('FLOOR SHIFT,AUTOMATIC TRANSMISSION')
   })
+
+  it('rejects unterminated quoted fields', () => {
+    expect(() => parseCsv('name,description\npart,"missing end')).toThrow('Malformed CSV: unterminated quoted field')
+  })
 })
 
 describe('diagramKey', () => {
@@ -61,6 +65,17 @@ describe('buildIpcImport', () => {
       sourceName: 'ILcats',
       sourceFilePrefix: 'mixed',
     })).toThrow('IPC parts file contains multiple VINs')
+  })
+
+  it('rejects a blank VIN in any part row', () => {
+    const rows = parseCsv(partsCsv)
+    rows[1].vin = '  '
+    expect(() => buildIpcImport(parseCsv(diagramsCsv), rows, {
+      vehicleId: 'vehicle-1',
+      userId: 'user-1',
+      sourceName: 'ILcats',
+      sourceFilePrefix: 'blank-vin',
+    })).toThrow('IPC parts file contains a blank VIN')
   })
 })
 

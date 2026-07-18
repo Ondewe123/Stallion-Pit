@@ -37,6 +37,7 @@ export function parseCsv(text) {
       cell += ch
     }
   }
+  if (inQuotes) throw new Error('Malformed CSV: unterminated quoted field')
   pushCell()
   if (row.some(v => v !== '')) pushRow()
 

@@ -19,10 +19,12 @@ export function searchTextForPart(part) {
 
 export function buildIpcImport(diagramRows, partRows, { vehicleId, userId, sourceName = 'ILcats', sourceFilePrefix = null }) {
   if (!partRows.length) throw new Error('IPC parts file has no rows')
-  const vins = [...new Set(partRows.map(r => trim(r.vin)).filter(Boolean))]
-  if (vins.length !== 1) throw new Error('IPC parts file contains multiple VINs')
+  const vins = partRows.map(r => trim(r.vin))
+  if (vins.some(vin => vin === null)) throw new Error('IPC parts file contains a blank VIN')
+  const uniqueVins = [...new Set(vins)]
+  if (uniqueVins.length !== 1) throw new Error('IPC parts file contains multiple VINs')
   const first = partRows[0]
-  const vin = vins[0]
+  const vin = uniqueVins[0]
 
   const catalog = {
     vehicle_id: vehicleId,
