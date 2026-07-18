@@ -32,8 +32,16 @@ describe('groupOptions', () => {
       { catalog_group: '24', group_name: '24' },
       { catalog_group: '26', group_name: '26' },
     ])).toEqual([
-      { value: '24', label: '24', count: 2 },
-      { value: '26', label: '26', count: 1 },
+      { value: '24', label: '24 - Engine suspension', count: 2 },
+      { value: '26', label: '26 - Transmission shift controls', count: 1 },
+    ])
+  })
+
+  it('uses real source group names before fallback names', () => {
+    expect(groupOptions([
+      { catalog_group: '10', group_name: 'Fuel supply' },
+    ])).toEqual([
+      { value: '10', label: '10 - Fuel supply', count: 1 },
     ])
   })
 })
