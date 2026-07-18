@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
 import { filterParts, groupOptions } from '../lib/ipc/search'
+import { isCurrentVehicleRequest, scopeVehicleLoad } from '../lib/ipc/vehicleScope'
 
 const copyText = async (text) => {
   try { await navigator.clipboard.writeText(text) } catch { /* non-fatal */ }
@@ -22,21 +23,24 @@ export default function Ipc() {
   const [branch, setBranch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [errorVehicleId, setErrorVehicleId] = useState('')
 
   useEffect(() => {
     let cancelled = false
     const vehicleId = activeVehicleId
-    const isCurrent = () => !cancelled && latestVehicleId.current === vehicleId
+    const isCurrent = () => isCurrentVehicleRequest(latestVehicleId.current, vehicleId, cancelled)
 
     const fetchData = async () => {
       if (!vehicleId) {
         setLoading(false)
         setLoadedVehicleId('')
+        setErrorVehicleId('')
         return
       }
 
       setLoading(true)
       setError(null)
+      setErrorVehicleId('')
       setCatalog(null)
       setLoadedVehicleId('')
       setDiagrams([])
@@ -48,6 +52,7 @@ export default function Ipc() {
       if (!isCurrent()) return
       if (catErr) {
         setError(catErr.message)
+        setErrorVehicleId(vehicleId)
         setLoading(false)
         return
       }
@@ -63,6 +68,7 @@ export default function Ipc() {
       if (!isCurrent()) return
       if (diagramErr || partErr) {
         setError(diagramErr?.message || partErr?.message)
+        setErrorVehicleId(vehicleId)
         setLoading(false)
         return
       }
@@ -78,9 +84,19 @@ export default function Ipc() {
     return () => { cancelled = true }
   }, [activeVehicleId])
 
-  const catalogForActiveVehicle = loadedVehicleId === activeVehicleId ? catalog : null
-  const diagramsForActiveVehicle = loadedVehicleId === activeVehicleId ? diagrams : []
-  const partsForActiveVehicle = loadedVehicleId === activeVehicleId ? parts : []
+  const scoped = scopeVehicleLoad({
+    activeVehicleId,
+    loadedVehicleId,
+    catalog,
+    diagrams,
+    parts,
+    error,
+    errorVehicleId,
+  })
+  const catalogForActiveVehicle = scoped.catalog
+  const diagramsForActiveVehicle = scoped.diagrams
+  const partsForActiveVehicle = scoped.parts
+  const errorForActiveVehicle = scoped.error
 
   const groups = useMemo(() => groupOptions(diagramsForActiveVehicle), [diagramsForActiveVehicle])
   const branches = useMemo(() => [...new Set(diagramsForActiveVehicle.map(d => d.branch).filter(Boolean))].sort(), [diagramsForActiveVehicle])
@@ -108,7 +124,7 @@ export default function Ipc() {
           {catalogForActiveVehicle ? ` - ${diagramsForActiveVehicle.length} diagrams - ${partsForActiveVehicle.length} parts` : ''}
         </p>
       </div>
-      {error && <div className="form-error">{error}</div>}
+      {errorForActiveVehicle && <div className="form-error">{errorForActiveVehicle}</div>}
       {loading ? (
         <div className="placeholder-card"><p>Loading IPC...</p></div>
       ) : !catalogForActiveVehicle ? (
