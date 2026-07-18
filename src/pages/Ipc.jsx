@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
 import { filterParts, groupOptions } from '../lib/ipc/search'
@@ -9,7 +9,11 @@ const copyText = async (text) => {
 
 export default function Ipc() {
   const { activeVehicle } = useVehicle()
+  const activeVehicleId = activeVehicle?.id || ''
+  const latestVehicleId = useRef(activeVehicleId)
+  latestVehicleId.current = activeVehicleId
   const [catalog, setCatalog] = useState(null)
+  const [loadedVehicleId, setLoadedVehicleId] = useState('')
   const [diagrams, setDiagrams] = useState([])
   const [parts, setParts] = useState([])
   const [selectedDiagramId, setSelectedDiagramId] = useState('')
@@ -21,24 +25,27 @@ export default function Ipc() {
 
   useEffect(() => {
     let cancelled = false
-    const vehicleId = activeVehicle?.id
+    const vehicleId = activeVehicleId
+    const isCurrent = () => !cancelled && latestVehicleId.current === vehicleId
 
     const fetchData = async () => {
       if (!vehicleId) {
         setLoading(false)
+        setLoadedVehicleId('')
         return
       }
 
       setLoading(true)
       setError(null)
       setCatalog(null)
+      setLoadedVehicleId('')
       setDiagrams([])
       setParts([])
       setSelectedDiagramId('')
 
       const { data: cat, error: catErr } = await supabase
         .from('ipc_catalogs').select('*').eq('vehicle_id', vehicleId).maybeSingle()
-      if (cancelled) return
+      if (!isCurrent()) return
       if (catErr) {
         setError(catErr.message)
         setLoading(false)
@@ -53,13 +60,14 @@ export default function Ipc() {
         supabase.from('ipc_diagrams').select('*').eq('catalog_id', cat.id).order('catalog_group').order('subgroup'),
         supabase.from('ipc_parts').select('*').eq('catalog_id', cat.id).order('catalog_group').order('subgroup').order('item_no'),
       ])
-      if (cancelled) return
+      if (!isCurrent()) return
       if (diagramErr || partErr) {
         setError(diagramErr?.message || partErr?.message)
         setLoading(false)
         return
       }
       setCatalog(cat)
+      setLoadedVehicleId(vehicleId)
       setDiagrams(diagramRows || [])
       setParts(partRows || [])
       setSelectedDiagramId(diagramRows?.[0]?.id || '')
@@ -68,15 +76,19 @@ export default function Ipc() {
 
     fetchData()
     return () => { cancelled = true }
-  }, [activeVehicle?.id])
+  }, [activeVehicleId])
 
-  const groups = useMemo(() => groupOptions(diagrams), [diagrams])
-  const branches = useMemo(() => [...new Set(diagrams.map(d => d.branch).filter(Boolean))].sort(), [diagrams])
-  const selectedDiagram = diagrams.find(d => d.id === selectedDiagramId) || null
-  const shownParts = useMemo(() => filterParts(parts, {
+  const catalogForActiveVehicle = loadedVehicleId === activeVehicleId ? catalog : null
+  const diagramsForActiveVehicle = loadedVehicleId === activeVehicleId ? diagrams : []
+  const partsForActiveVehicle = loadedVehicleId === activeVehicleId ? parts : []
+
+  const groups = useMemo(() => groupOptions(diagramsForActiveVehicle), [diagramsForActiveVehicle])
+  const branches = useMemo(() => [...new Set(diagramsForActiveVehicle.map(d => d.branch).filter(Boolean))].sort(), [diagramsForActiveVehicle])
+  const selectedDiagram = diagramsForActiveVehicle.find(d => d.id === selectedDiagramId) || null
+  const shownParts = useMemo(() => filterParts(partsForActiveVehicle, {
     query, diagramId: query ? '' : selectedDiagramId, group, branch,
-  }), [parts, query, selectedDiagramId, group, branch])
-  const visibleDiagrams = diagrams.filter(d =>
+  }), [partsForActiveVehicle, query, selectedDiagramId, group, branch])
+  const visibleDiagrams = diagramsForActiveVehicle.filter(d =>
     (!group || d.catalog_group === group) && (!branch || d.branch === branch)
   )
 
@@ -93,13 +105,13 @@ export default function Ipc() {
         <h2>IPC</h2>
         <p className="page-sub">
           {activeVehicle.name}{activeVehicle.vin ? ` - VIN ${activeVehicle.vin}` : ''}
-          {catalog ? ` - ${diagrams.length} diagrams - ${parts.length} parts` : ''}
+          {catalogForActiveVehicle ? ` - ${diagramsForActiveVehicle.length} diagrams - ${partsForActiveVehicle.length} parts` : ''}
         </p>
       </div>
       {error && <div className="form-error">{error}</div>}
       {loading ? (
         <div className="placeholder-card"><p>Loading IPC...</p></div>
-      ) : !catalog ? (
+      ) : !catalogForActiveVehicle ? (
         <div className="placeholder-card"><p>No IPC imported for this vehicle yet.</p></div>
       ) : (
         <>
@@ -127,7 +139,7 @@ export default function Ipc() {
               </div>
               <div className="form-group">
                 <label>Catalog</label>
-                <input value={`${catalog.source_name} - ${catalog.model_code || ''} ${catalog.engine_code || ''} ${catalog.gearbox_code || ''}`.trim()} readOnly />
+                <input value={`${catalogForActiveVehicle.source_name} - ${catalogForActiveVehicle.model_code || ''} ${catalogForActiveVehicle.engine_code || ''} ${catalogForActiveVehicle.gearbox_code || ''}`.trim()} readOnly />
               </div>
             </div>
           </div>
