@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from 'vitest'
-import { snagPricePlanningLinks } from './Snags.jsx'
+import { shouldShowIpcPickerResults, snagPricePlanningLinks } from './Snags.jsx'
 
 describe('snagPricePlanningLinks', () => {
   it('returns linked IPC parts that can show price planning controls on the snags list', () => {
@@ -26,5 +26,28 @@ describe('snagPricePlanningLinks', () => {
         part: { part_number: 'A2024703941', name: 'SENSOR WITH PUMP' },
       },
     ])
+  })
+})
+
+describe('shouldShowIpcPickerResults', () => {
+  it('hides the IPC search results after a part has been selected', () => {
+    expect(shouldShowIpcPickerResults({
+      hasIpcParts: true,
+      selectedCount: 1,
+      pickerCollapsed: true,
+    })).toBe(false)
+  })
+
+  it('shows results while searching before a part is selected or after reopening', () => {
+    expect(shouldShowIpcPickerResults({
+      hasIpcParts: true,
+      selectedCount: 0,
+      pickerCollapsed: true,
+    })).toBe(true)
+    expect(shouldShowIpcPickerResults({
+      hasIpcParts: true,
+      selectedCount: 1,
+      pickerCollapsed: false,
+    })).toBe(true)
   })
 })

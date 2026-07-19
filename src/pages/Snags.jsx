@@ -135,6 +135,11 @@ export function snagPricePlanningLinks(snag) {
     .filter(link => link.ipc_part_id && link.part?.part_number)
 }
 
+export function shouldShowIpcPickerResults({ hasIpcParts, selectedCount, pickerCollapsed }) {
+  if (!hasIpcParts) return false
+  return !pickerCollapsed || selectedCount === 0
+}
+
 function SnagForm({
   initial = EMPTY_FORM,
   onSave,
@@ -155,6 +160,7 @@ function SnagForm({
   const [ipcBranch, setIpcBranch] = useState('')
   const [ipcDiagram, setIpcDiagram] = useState('')
   const [smartIpcRank, setSmartIpcRank] = useState(true)
+  const [ipcPickerCollapsed, setIpcPickerCollapsed] = useState(() => (initial.ipcParts || []).length > 0)
   const set = (field, value) => setForm(f => ({ ...f, [field]: value }))
   const toggleCondition = (c) => setForm(f => {
     const has = (f.conditions || []).includes(c)
@@ -195,12 +201,22 @@ function SnagForm({
     setIpcBranch('')
     setIpcDiagram('')
     setSmartIpcRank(true)
+    setIpcPickerCollapsed(false)
   }
   const setIpcQuantity = (ipcPartId, quantity) => setSelectedIpcParts(parts =>
     parts.map(link => link.ipc_part_id === ipcPartId ? { ...link, quantity_needed: quantity } : link))
   const removeIpcPart = (ipcPartId) => setSelectedIpcParts(parts =>
     parts.filter(link => link.ipc_part_id !== ipcPartId))
   const setPriceInput = (key, value) => setPriceInputs(current => ({ ...current, [key]: value }))
+  const addIpcPartToSnag = (part) => {
+    setSelectedIpcParts(parts => addSelectedIpcPart(parts, part))
+    setIpcPickerCollapsed(true)
+  }
+  const showIpcPickerResults = shouldShowIpcPickerResults({
+    hasIpcParts: ipcParts.length > 0,
+    selectedCount: selectedIpcParts.length,
+    pickerCollapsed: ipcPickerCollapsed,
+  })
 
   const handleSubmit = (e) => { e.preventDefault(); onSave({ ...form, ipcParts: selectedIpcParts }) }
 
@@ -257,7 +273,12 @@ function SnagForm({
             </p>
           </div>
           {ipcParts.length > 0 && (
-            <button type="button" className="row-btn" onClick={clearIpcFilters}>Reset picker</button>
+            <div className="row-actions" style={{ justifyContent: 'flex-end' }}>
+              {selectedIpcParts.length > 0 && ipcPickerCollapsed && (
+                <button type="button" className="row-btn" onClick={() => setIpcPickerCollapsed(false)}>Show picker</button>
+              )}
+              <button type="button" className="row-btn" onClick={clearIpcFilters}>Reset picker</button>
+            </div>
           )}
         </div>
         {ipcLoading ? (
@@ -365,7 +386,7 @@ function SnagForm({
               )
             })}
 
-            {shownIpcParts.length === 0 ? (
+            {showIpcPickerResults && (shownIpcParts.length === 0 ? (
               <p className="page-sub">No matching IPC parts.</p>
             ) : (
               <div className="table-wrapper" style={{ marginTop: 10 }}>
@@ -416,7 +437,7 @@ function SnagForm({
                         </td>
                         <td>
                           <button type="button" className="row-btn vehicle-tab-active"
-                            onClick={() => setSelectedIpcParts(parts => addSelectedIpcPart(parts, part))}>
+                            onClick={() => addIpcPartToSnag(part)}>
                             Add part
                           </button>
                         </td>
@@ -425,7 +446,7 @@ function SnagForm({
                   </tbody>
                 </table>
               </div>
-            )}
+            ))}
           </>
         )}
       </div>
