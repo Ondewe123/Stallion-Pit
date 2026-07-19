@@ -1097,6 +1097,25 @@ input::placeholder { color: var(--text-dim); }
 .snag-price-history-row strong {
   color: var(--text);
 }
+.snag-list-price-planner {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+.snag-list-price-item {
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.18);
+  padding: 8px;
+}
+.snag-list-price-title {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  margin-bottom: 6px;
+  color: var(--text);
+  font-size: 12px;
+}
 
 /* ============================================================
    Feedback widget — floating capture button + modal

@@ -129,6 +129,12 @@ function PriceOptionsPanel({ snagId, link, priceSnapshots, priceInputs, setPrice
   )
 }
 
+export function snagPricePlanningLinks(snag) {
+  return (snag?.snag_ipc_parts || [])
+    .map(link => ({ ...link, part: link.ipc_parts || link.part || {} }))
+    .filter(link => link.ipc_part_id && link.part?.part_number)
+}
+
 function SnagForm({
   initial = EMPTY_FORM,
   onSave,
@@ -545,6 +551,7 @@ export default function Snags() {
   const [ipcLoading, setIpcLoading] = useState(false)
   const [priceSnapshots, setPriceSnapshots] = useState([])
   const [priceLoadingKey, setPriceLoadingKey] = useState('')
+  const [priceInputs, setPriceInputs] = useState({})
   const activeOptionCodes = activeVehicle?.option_codes || []
   const applicableIpcParts = useMemo(() =>
     filterByVehicleOptions(ipcParts, activeOptionCodes),
@@ -681,6 +688,7 @@ export default function Snags() {
       setPriceLoadingKey('')
     }
   }
+  const setPriceInput = (key, value) => setPriceInputs(current => ({ ...current, [key]: value }))
 
   const openCount = logs.filter(s => ACTIVE_STATUSES.includes(s.status)).length
   const needsAttention = logs.filter(s =>
@@ -831,6 +839,27 @@ export default function Snags() {
                           const part = link.ipc_parts || {}
                           return `${part.part_number}${link.quantity_needed ? ` x${Number(link.quantity_needed).toLocaleString()}` : ''}`
                         }).join(', ')}
+                      </div>
+                    )}
+                    {snagPricePlanningLinks(log).length > 0 && (
+                      <div className="snag-list-price-planner">
+                        {snagPricePlanningLinks(log).map(link => (
+                          <div key={`${log.id}-${link.ipc_part_id}`} className="snag-list-price-item">
+                            <div className="snag-list-price-title">
+                              <strong className="mono">{link.part.part_number}</strong>
+                              <span>{link.part.name || 'IPC part'}</span>
+                            </div>
+                            <PriceOptionsPanel
+                              snagId={log.id}
+                              link={link}
+                              priceSnapshots={priceSnapshots}
+                              priceInputs={priceInputs}
+                              setPriceInput={setPriceInput}
+                              onRefreshPrices={refreshIpcPartPrices}
+                              priceLoadingKey={priceLoadingKey}
+                            />
+                          </div>
+                        ))}
                       </div>
                     )}
                   </td>
