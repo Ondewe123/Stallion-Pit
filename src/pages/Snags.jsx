@@ -4,6 +4,7 @@ import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
 import { fetchAllRows } from '../lib/supabase/fetchAllRows'
 import { filterByVehicleOptions } from '../lib/ipc/optionCodes'
+import { formatGbp, formatKes, linkPriceSnapshots, priceSnapshotKey } from '../lib/priceOptions/snapshots'
 import {
   addSelectedIpcPart,
   collapseSupersededIpcParts,
@@ -49,9 +50,100 @@ const EMPTY_FORM = {
   notes: '',
 }
 
-function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer, ipcParts = [], ipcLoading = false }) {
+function PriceOptionsPanel({ snagId, link, priceSnapshots, priceInputs, setPriceInput, onRefreshPrices, priceLoadingKey }) {
+  if (!snagId) {
+    return <p className="page-sub" style={{ marginTop: 8 }}>Save the snag before pulling supplier prices.</p>
+  }
+  const key = priceSnapshotKey(snagId, link.ipc_part_id)
+  const input = priceInputs[key] || { freightMethod: 'air', weightKg: 1 }
+  const { latest, history } = linkPriceSnapshots(snagId, link.ipc_part_id, priceSnapshots)
+  const loading = priceLoadingKey === key
+  return (
+    <div className="snag-price-panel">
+      <div className="row-actions" style={{ flexWrap: 'wrap', gap: 8 }}>
+        <select
+          value={input.freightMethod}
+          onChange={e => setPriceInput(key, { ...input, freightMethod: e.target.value })}
+          title="UK to Kenya freight estimate"
+        >
+          <option value="air">UK air freight</option>
+          <option value="sea">UK sea freight</option>
+        </select>
+        <input
+          type="number"
+          min="0.1"
+          step="0.1"
+          value={input.weightKg}
+          onChange={e => setPriceInput(key, { ...input, weightKg: e.target.value })}
+          title="Estimated parcel weight in kg"
+          style={{ width: 90 }}
+        />
+        <button
+          type="button"
+          className="row-btn vehicle-tab-active"
+          onClick={() => onRefreshPrices({
+            snagId,
+            ipcPartId: link.ipc_part_id,
+            freightMethod: input.freightMethod,
+            weightKg: input.weightKg,
+          })}
+          disabled={loading}
+        >
+          {loading ? 'Checking...' : 'Refresh prices'}
+        </button>
+      </div>
+      {latest.length > 0 && (
+        <div className="snag-price-options">
+          {latest.map(snapshot => (
+            <div key={snapshot.id} className="snag-price-option">
+              <div>
+                <strong>{snapshot.brand || 'Autodoc'}</strong>
+                <div className="page-sub">{snapshot.product_title || snapshot.supplier_article_number || 'Autodoc option'}</div>
+                {snapshot.supplier_article_number && <div className="page-sub">Article {snapshot.supplier_article_number}</div>}
+              </div>
+              <div className="snag-price-option-cost">
+                <span>{formatGbp(snapshot.price)}</span>
+                <strong>{formatKes(snapshot.landed_cost_kes)}</strong>
+                {snapshot.product_url && (
+                  <button type="button" className="row-btn" onClick={() => window.open(snapshot.product_url, '_blank', 'noopener')}>Open</button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {history.length > 0 && (
+        <details className="snag-price-history">
+          <summary>Price history ({history.length})</summary>
+          {history.map(snapshot => (
+            <div key={`history-${snapshot.id}`} className="snag-price-history-row">
+              <span>{snapshot.fetched_at ? new Date(snapshot.fetched_at).toLocaleDateString() : 'unknown date'}</span>
+              <span>{snapshot.brand || 'Autodoc'}</span>
+              <span>{formatGbp(snapshot.price)}</span>
+              <strong>{formatKes(snapshot.landed_cost_kes)}</strong>
+            </div>
+          ))}
+        </details>
+      )}
+    </div>
+  )
+}
+
+function SnagForm({
+  initial = EMPTY_FORM,
+  onSave,
+  onCancel,
+  saving,
+  lastOdometer,
+  ipcParts = [],
+  ipcLoading = false,
+  priceSnapshots = [],
+  onRefreshPrices,
+  priceLoadingKey = '',
+}) {
   const [form, setForm] = useState({ ...EMPTY_FORM, ...initial, conditions: initial.conditions || [] })
   const [selectedIpcParts, setSelectedIpcParts] = useState(initial.ipcParts || [])
+  const [priceInputs, setPriceInputs] = useState({})
   const [ipcQuery, setIpcQuery] = useState('')
   const [ipcGroup, setIpcGroup] = useState('')
   const [ipcBranch, setIpcBranch] = useState('')
@@ -102,6 +194,7 @@ function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
     parts.map(link => link.ipc_part_id === ipcPartId ? { ...link, quantity_needed: quantity } : link))
   const removeIpcPart = (ipcPartId) => setSelectedIpcParts(parts =>
     parts.filter(link => link.ipc_part_id !== ipcPartId))
+  const setPriceInput = (key, value) => setPriceInputs(current => ({ ...current, [key]: value }))
 
   const handleSubmit = (e) => { e.preventDefault(); onSave({ ...form, ipcParts: selectedIpcParts }) }
 
@@ -253,6 +346,15 @@ function SnagForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
                       <button type="button" className="row-btn row-btn-danger" onClick={() => removeIpcPart(link.ipc_part_id)}>Remove</button>
                     </div>
                   </div>
+                  <PriceOptionsPanel
+                    snagId={initial.id}
+                    link={link}
+                    priceSnapshots={priceSnapshots}
+                    priceInputs={priceInputs}
+                    setPriceInput={setPriceInput}
+                    onRefreshPrices={onRefreshPrices}
+                    priceLoadingKey={priceLoadingKey}
+                  />
                 </div>
               )
             })}
@@ -441,6 +543,8 @@ export default function Snags() {
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [ipcParts, setIpcParts] = useState([])
   const [ipcLoading, setIpcLoading] = useState(false)
+  const [priceSnapshots, setPriceSnapshots] = useState([])
+  const [priceLoadingKey, setPriceLoadingKey] = useState('')
   const activeOptionCodes = activeVehicle?.option_codes || []
   const applicableIpcParts = useMemo(() =>
     filterByVehicleOptions(ipcParts, activeOptionCodes),
@@ -454,7 +558,19 @@ export default function Snags() {
       .select('*, snag_ipc_parts(*, ipc_parts(id, diagram_id, branch, catalog_group, group_name, subgroup, diagram_title, item_no, part_number, replacement_numbers, quantity, name, usage, remarks, source_url, diagram_image_url, price_url))')
       .eq('vehicle_id', activeVehicle.id)
       .order('reported_at', { ascending: false })
-    setLogs(data || [])
+    const rows = data || []
+    setLogs(rows)
+    const snagIds = rows.map(row => row.id).filter(Boolean)
+    if (snagIds.length > 0) {
+      const { data: snapshotRows } = await supabase
+        .from('part_price_snapshots')
+        .select('*')
+        .in('snag_id', snagIds)
+        .order('fetched_at', { ascending: false })
+      setPriceSnapshots(snapshotRows || [])
+    } else {
+      setPriceSnapshots([])
+    }
     setLoading(false)
   }, [activeVehicle])
 
@@ -545,6 +661,27 @@ export default function Snags() {
     await fetchLogs()
   }
 
+  const refreshIpcPartPrices = async ({ snagId, ipcPartId, freightMethod = 'air', weightKg = 1 }) => {
+    const key = priceSnapshotKey(snagId, ipcPartId)
+    setPriceLoadingKey(key)
+    setError(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/part-price-options', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${session?.access_token || ''}` },
+        body: JSON.stringify({ snagId, ipcPartId, freightMethod, weightKg }),
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error || 'Could not refresh prices')
+      setPriceSnapshots(current => [...(body.snapshots || []), ...current])
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setPriceLoadingKey('')
+    }
+  }
+
   const openCount = logs.filter(s => ACTIVE_STATUSES.includes(s.status)).length
   const needsAttention = logs.filter(s =>
     ACTIVE_STATUSES.includes(s.status) && (s.severity === 'High' || s.severity === 'Critical')).length
@@ -575,6 +712,9 @@ export default function Snags() {
         lastOdometer={lastOdometer}
         ipcParts={applicableIpcParts}
         ipcLoading={ipcLoading}
+        priceSnapshots={priceSnapshots}
+        onRefreshPrices={refreshIpcPartPrices}
+        priceLoadingKey={priceLoadingKey}
       />
     </div>
   )
@@ -601,6 +741,9 @@ export default function Snags() {
         lastOdometer={lastOdometer}
         ipcParts={applicableIpcParts}
         ipcLoading={ipcLoading}
+        priceSnapshots={priceSnapshots}
+        onRefreshPrices={refreshIpcPartPrices}
+        priceLoadingKey={priceLoadingKey}
       />
     </div>
   )

@@ -6,7 +6,7 @@
 export const BACKUP_TABLES = [
   'vehicles', 'fuel_logs', 'service_logs', 'parts', 'snags', 'maintenance_schedules',
   'maintenance_templates', 'template_items', 'work_orders', 'work_order_parts',
-  'work_order_schedule_items', 'dtc_codes', 'documents',
+  'work_order_schedule_items', 'dtc_codes', 'documents', 'part_price_snapshots',
 ]
 
 // FK-safe insert order. work_orders goes early so the only forward reference left is
@@ -14,7 +14,7 @@ export const BACKUP_TABLES = [
 export const RESTORE_ORDER = [
   'vehicles', 'maintenance_templates', 'template_items', 'work_orders', 'fuel_logs',
   'service_logs', 'parts', 'snags', 'maintenance_schedules', 'work_order_parts',
-  'work_order_schedule_items', 'dtc_codes', 'documents',
+  'work_order_schedule_items', 'dtc_codes', 'documents', 'part_price_snapshots',
 ]
 
 // Delete children before parents.

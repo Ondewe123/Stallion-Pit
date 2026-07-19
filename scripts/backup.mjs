@@ -43,7 +43,7 @@ if (serviceKey.startsWith('sb_publishable') || /anon/i.test(serviceKey)) {
 }
 
 // Order matters for SQL re-import: parents before children (FK).
-const TABLES = ['vehicles', 'fuel_logs', 'service_logs', 'parts', 'snags', 'maintenance_schedules']
+const TABLES = ['vehicles', 'fuel_logs', 'service_logs', 'parts', 'snags', 'maintenance_schedules', 'part_price_snapshots']
 // Generated columns can't be inserted into — skip them in the SQL dump.
 const GENERATED = { fuel_logs: ['derived_price_per_litre'] }
 

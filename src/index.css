@@ -1045,6 +1045,58 @@ input::placeholder { color: var(--text-dim); }
   align-items: center;
   min-width: 0;
 }
+.snag-price-panel {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.snag-price-panel select,
+.snag-price-panel input {
+  min-height: 34px;
+}
+.snag-price-options {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+.snag-price-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--border);
+  background: var(--black);
+  padding: 8px;
+}
+.snag-price-option-cost {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+.snag-price-option-cost strong {
+  color: var(--gold);
+}
+.snag-price-history {
+  margin-top: 8px;
+}
+.snag-price-history summary {
+  cursor: pointer;
+  color: var(--text-mid);
+  font-size: 12px;
+}
+.snag-price-history-row {
+  display: grid;
+  grid-template-columns: 100px minmax(80px, 1fr) 100px 120px;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-mid);
+}
+.snag-price-history-row strong {
+  color: var(--text);
+}
 
 /* ============================================================
    Feedback widget — floating capture button + modal
