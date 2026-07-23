@@ -172,7 +172,7 @@ export default function RoutePlanner() {
                       <td className="primary">{c.name}</td>
                       <td className="mono">{vehiclesWithConsumption.find(v => v.id === c.id)?.rollingL100?.toFixed(2) || '—'}</td>
                       <td className="mono">{c.fuelCost != null ? `KES ${kes(c.fuelCost)}` : 'no data'}</td>
-                      <td className="mono">{c.runningCost ? `KES ${kes(c.runningCost)}` : '—'}</td>
+                      <td className="mono">{c.runningCost != null ? `KES ${kes(c.runningCost)}` : '—'}</td>
                       <td className="mono">{c.totalCost != null ? `KES ${kes(c.totalCost)}` : '—'}</td>
                     </tr>
                   ))}

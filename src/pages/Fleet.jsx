@@ -289,7 +289,7 @@ function VehicleDetail({ vehicle, onEdit, onBack }) {
     { label: 'Oil Spec',       value: vehicle.oil_spec },
     { label: 'Coolant Spec',   value: vehicle.coolant_spec },
     { label: 'Tank Capacity',  value: vehicle.fuel_tank_capacity ? `${vehicle.fuel_tank_capacity}L` : null },
-    { label: 'Running Cost',   value: vehicle.running_cost_km ? `KES ${Number(vehicle.running_cost_km).toFixed(1)}/km` : null },
+    { label: 'Running Cost',   value: vehicle.running_cost_km != null ? `KES ${Number(vehicle.running_cost_km).toFixed(1)}/km` : null },
     { label: 'Tyre Size',      value: vehicle.tyre_size },
     { label: 'Battery',        value: vehicle.battery_spec },
     { label: 'OBD Notes',      value: vehicle.obd_notes },
