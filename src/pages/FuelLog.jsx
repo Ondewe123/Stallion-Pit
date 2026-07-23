@@ -6,11 +6,9 @@ import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
 import { correctedConsumption, rolling, num, withDerived, GAP_HINT_DAYS } from '../lib/calc/consumption'
 import { cleanFuelLog } from '../lib/fuelForm'
+import { useChartTheme } from '../lib/chartTheme'
 
 const TREND_RANGES = [{ k: '3', mo: 3 }, { k: '6', mo: 6 }, { k: '12', mo: 12 }, { k: 'All', mo: null }]
-const AXIS = { fontSize: 11, fill: '#8a8a8a' }
-const GRID = '#2a2a2a'
-const TIP = { background: '#161616', border: '1px solid #333', borderRadius: 4, fontSize: 12 }
 const round2 = (n) => Math.round(n * 100) / 100
 
 const EMPTY_FORM = {
@@ -91,6 +89,7 @@ function ConsumptionBadge({ logs }) {
 // `logs` arrive newest-first; rolling() needs oldest-first, so we sort a copy ascending.
 function ConsumptionTrend({ logs }) {
   const [range, setRange] = useState(TREND_RANGES[1]) // default: last 6 months
+  const chart = useChartTheme()
   const asc = [...logs].sort((a, b) => num(a.odometer_km) - num(b.odometer_km))
   const cutoff = range.mo
     ? (() => { const d = new Date(); d.setMonth(d.getMonth() - range.mo); return d.toISOString().split('T')[0] })()
@@ -120,11 +119,11 @@ function ConsumptionTrend({ logs }) {
         <div style={{ height: 220, width: '100%' }}>
           <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <LineChart data={series} margin={{ top: 6, right: 12, bottom: 0, left: -8 }}>
-              <CartesianGrid stroke={GRID} vertical={false} />
-              <XAxis dataKey="date" tick={AXIS} minTickGap={40} tickLine={false} axisLine={{ stroke: GRID }} />
-              <YAxis tick={AXIS} tickLine={false} axisLine={false} width={40} domain={['auto', 'auto']} />
-              <Tooltip contentStyle={TIP} labelStyle={{ color: '#aaa' }} />
-              <Line type="monotone" dataKey="value" name="L/100km" stroke="#c9a227" strokeWidth={2} dot={false} />
+              <CartesianGrid stroke={chart.grid} vertical={false} />
+              <XAxis dataKey="date" tick={chart.axis} minTickGap={40} tickLine={false} axisLine={{ stroke: chart.grid }} />
+              <YAxis tick={chart.axis} tickLine={false} axisLine={false} width={40} domain={['auto', 'auto']} />
+              <Tooltip contentStyle={chart.tooltip.contentStyle} labelStyle={chart.tooltip.labelStyle} />
+              <Line type="monotone" dataKey="value" name="L/100km" stroke={chart.series[1]} strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>

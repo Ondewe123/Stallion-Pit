@@ -7,6 +7,7 @@ import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
 import { num, rolling } from '../lib/calc/consumption'
 import { fuelUsedTotals, fuelPeriods } from '../lib/calc/fuelUsage'
+import { useChartTheme } from '../lib/chartTheme'
 
 const RANGES = [{ k: '3', mo: 3 }, { k: '6', mo: 6 }, { k: '12', mo: 12 }, { k: 'All', mo: null }]
 const round2 = (n) => Math.round(n * 100) / 100
@@ -15,10 +16,6 @@ const kes = (x) => x == null ? '—' : Math.round(num(x)).toLocaleString()
 const f1 = (x) => x == null ? '—' : num(x).toFixed(1)
 const f2 = (x) => x == null ? '—' : num(x).toFixed(2)
 const km = (x) => x == null ? '—' : Math.round(num(x)).toLocaleString()
-
-const AXIS = { fontSize: 11, fill: '#8a8a8a' }
-const GRID = '#2a2a2a'
-const TIP = { background: '#161616', border: '1px solid #333', borderRadius: 4, fontSize: 12 }
 
 function Stat({ label, value, unit, sub }) {
   return (
@@ -50,6 +47,7 @@ export default function Analysis() {
   const { activeVehicle } = useVehicle()
   const [raw, setRaw] = useState(null)
   const [range, setRange] = useState(RANGES[2]) // charts default 12 mo
+  const chart = useChartTheme()
 
   const fetchData = useCallback(async () => {
     if (!activeVehicle) return
@@ -278,44 +276,44 @@ export default function Analysis() {
       <div className="analysis-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 16 }}>
         <ChartCard title="Fuel Consumption" sub="L/100km · rolling 3-fill corrected" empty={consumption.length < 2}>
           <LineChart data={consumption} margin={{ top: 6, right: 12, bottom: 0, left: -8 }}>
-            <CartesianGrid stroke={GRID} vertical={false} />
-            <XAxis dataKey="date" tick={AXIS} minTickGap={40} tickLine={false} axisLine={{ stroke: GRID }} />
-            <YAxis tick={AXIS} tickLine={false} axisLine={false} width={40} />
-            <Tooltip contentStyle={TIP} labelStyle={{ color: '#aaa' }} />
-            <Line type="monotone" dataKey="value" name="L/100km" stroke="#c9a227" strokeWidth={2} dot={false} />
+            <CartesianGrid stroke={chart.grid} vertical={false} />
+            <XAxis dataKey="date" tick={chart.axis} minTickGap={40} tickLine={false} axisLine={{ stroke: chart.grid }} />
+            <YAxis tick={chart.axis} tickLine={false} axisLine={false} width={40} />
+            <Tooltip contentStyle={chart.tooltip.contentStyle} labelStyle={chart.tooltip.labelStyle} />
+            <Line type="monotone" dataKey="value" name="L/100km" stroke={chart.series[1]} strokeWidth={2} dot={false} />
           </LineChart>
         </ChartCard>
 
         <ChartCard title="Monthly Spend" sub="fuel · service · parts (KES)" empty={months.length < 1}>
           <BarChart data={months} margin={{ top: 6, right: 12, bottom: 0, left: -8 }}>
-            <CartesianGrid stroke={GRID} vertical={false} />
-            <XAxis dataKey="month" tick={AXIS} minTickGap={24} tickLine={false} axisLine={{ stroke: GRID }} />
-            <YAxis tick={AXIS} tickLine={false} axisLine={false} width={48} />
-            <Tooltip contentStyle={TIP} labelStyle={{ color: '#aaa' }} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+            <CartesianGrid stroke={chart.grid} vertical={false} />
+            <XAxis dataKey="month" tick={chart.axis} minTickGap={24} tickLine={false} axisLine={{ stroke: chart.grid }} />
+            <YAxis tick={chart.axis} tickLine={false} axisLine={false} width={48} />
+            <Tooltip contentStyle={chart.tooltip.contentStyle} labelStyle={chart.tooltip.labelStyle} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Bar dataKey="fuel" stackId="s" fill="#f39c12" />
-            <Bar dataKey="service" stackId="s" fill="#27ae60" />
-            <Bar dataKey="parts" stackId="s" fill="#b07cc6" />
+            <Bar dataKey="fuel" stackId="s" fill={chart.series[4]} />
+            <Bar dataKey="service" stackId="s" fill={chart.series[5]} />
+            <Bar dataKey="parts" stackId="s" fill={chart.series[6]} />
           </BarChart>
         </ChartCard>
 
         <ChartCard title="Price per Litre" sub="KES/L at each fill" empty={pplSeries.length < 2}>
           <LineChart data={pplSeries} margin={{ top: 6, right: 12, bottom: 0, left: -8 }}>
-            <CartesianGrid stroke={GRID} vertical={false} />
-            <XAxis dataKey="date" tick={AXIS} minTickGap={40} tickLine={false} axisLine={{ stroke: GRID }} />
-            <YAxis tick={AXIS} tickLine={false} axisLine={false} width={40} domain={['auto', 'auto']} />
-            <Tooltip contentStyle={TIP} labelStyle={{ color: '#aaa' }} />
-            <Line type="monotone" dataKey="value" name="KES/L" stroke="#4aa3df" strokeWidth={2} dot={false} />
+            <CartesianGrid stroke={chart.grid} vertical={false} />
+            <XAxis dataKey="date" tick={chart.axis} minTickGap={40} tickLine={false} axisLine={{ stroke: chart.grid }} />
+            <YAxis tick={chart.axis} tickLine={false} axisLine={false} width={40} domain={['auto', 'auto']} />
+            <Tooltip contentStyle={chart.tooltip.contentStyle} labelStyle={chart.tooltip.labelStyle} />
+            <Line type="monotone" dataKey="value" name="KES/L" stroke={chart.series[2]} strokeWidth={2} dot={false} />
           </LineChart>
         </ChartCard>
 
         <ChartCard title="Running Cost" sub="KES/km · rolling 3-fill" empty={costPerKm.length < 2}>
           <LineChart data={costPerKm} margin={{ top: 6, right: 12, bottom: 0, left: -8 }}>
-            <CartesianGrid stroke={GRID} vertical={false} />
-            <XAxis dataKey="date" tick={AXIS} minTickGap={40} tickLine={false} axisLine={{ stroke: GRID }} />
-            <YAxis tick={AXIS} tickLine={false} axisLine={false} width={40} />
-            <Tooltip contentStyle={TIP} labelStyle={{ color: '#aaa' }} />
-            <Line type="monotone" dataKey="value" name="KES/km" stroke="#e0794a" strokeWidth={2} dot={false} />
+            <CartesianGrid stroke={chart.grid} vertical={false} />
+            <XAxis dataKey="date" tick={chart.axis} minTickGap={40} tickLine={false} axisLine={{ stroke: chart.grid }} />
+            <YAxis tick={chart.axis} tickLine={false} axisLine={false} width={40} />
+            <Tooltip contentStyle={chart.tooltip.contentStyle} labelStyle={chart.tooltip.labelStyle} />
+            <Line type="monotone" dataKey="value" name="KES/km" stroke={chart.series[3]} strokeWidth={2} dot={false} />
           </LineChart>
         </ChartCard>
       </div>
