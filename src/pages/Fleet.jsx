@@ -14,7 +14,7 @@ const EMPTY_FORM = {
   drive_type: '', body_type: '', fuel_type: 'Petrol',
   color: '', license_plate: '', vin: '', purchase_date: '',
   purchase_price_kes: '', odometer_at_purchase: '',
-  fuel_tank_capacity: '', oil_capacity_litres: '', oil_spec: '',
+  fuel_tank_capacity: '', oil_capacity_litres: '', oil_spec: '', running_cost_km: '',
   gearbox_code: '', tyre_size: '', battery_spec: '', coolant_spec: '', obd_notes: '',
   insurance_expiry: '', inspection_expiry: '', licence_expiry: '', insurance_note: '',
   option_codes: [],
@@ -130,6 +130,12 @@ function VehicleForm({
         <div className="form-group">
           <label>Fuel Tank Capacity (L)</label>
           <input type="number" step="0.1" value={form.fuel_tank_capacity} onChange={e => set('fuel_tank_capacity', e.target.value)} placeholder="e.g. 62" />
+        </div>
+      </div>
+      <div className="form-row">
+        <div className="form-group">
+          <label>Running Cost (KES/km)</label>
+          <input type="number" step="0.1" value={form.running_cost_km} onChange={e => set('running_cost_km', e.target.value)} placeholder="e.g. 4.5 — tyres, service, depreciation" />
         </div>
       </div>
       <div className="form-section-title">Registration & Purchase</div>
@@ -283,6 +289,7 @@ function VehicleDetail({ vehicle, onEdit, onBack }) {
     { label: 'Oil Spec',       value: vehicle.oil_spec },
     { label: 'Coolant Spec',   value: vehicle.coolant_spec },
     { label: 'Tank Capacity',  value: vehicle.fuel_tank_capacity ? `${vehicle.fuel_tank_capacity}L` : null },
+    { label: 'Running Cost',   value: vehicle.running_cost_km ? `KES ${Number(vehicle.running_cost_km).toFixed(1)}/km` : null },
     { label: 'Tyre Size',      value: vehicle.tyre_size },
     { label: 'Battery',        value: vehicle.battery_spec },
     { label: 'OBD Notes',      value: vehicle.obd_notes },
