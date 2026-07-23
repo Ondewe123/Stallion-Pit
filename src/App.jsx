@@ -19,6 +19,7 @@ import Documents from './pages/Documents'
 import Backup from './pages/Backup'
 import Feedback from './pages/Feedback'
 import Ipc from './pages/Ipc'
+import RoutePlanner from './pages/RoutePlanner'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
@@ -58,6 +59,7 @@ function AppRoutes() {
         <Route path="documents" element={<Documents />} />
         <Route path="backup" element={<Backup />} />
         <Route path="feedback" element={<Feedback />} />
+        <Route path="routes" element={<RoutePlanner />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
