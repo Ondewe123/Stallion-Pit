@@ -300,7 +300,7 @@ export default function WorkOrders() {
                   <tbody>
                     {parts.map(p => (
                       <tr key={p.id}>
-                        <td className="primary">{p.part_name}{p.brand && <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{p.brand} {p.part_number}</div>}</td>
+                        <td className="primary">{p.part_name}{p.brand && <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{p.brand} {p.part_number}</div>}</td>
                         <td><span className={`badge ${p.status === 'Fitted' ? 'badge-green' : 'badge-amber'}`}>{p.status}</span></td>
                         <td>{p.quantity}</td>
                         <td className="mono">{kes(p.total_cost_kes)}</td>
@@ -346,7 +346,7 @@ export default function WorkOrders() {
                     const pTotal = (o.work_order_parts || []).filter(p => p.status === 'Fitted').reduce((s, p) => s + Number(p.total_cost_kes || 0), 0)
                     return (
                       <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => openEditor(o.id)}>
-                        <td className="primary">{o.title}{o.category && <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{o.category}</div>}</td>
+                        <td className="primary">{o.title}{o.category && <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{o.category}</div>}</td>
                         <td><span className={`badge ${STATUS_BADGE[o.status]}`}>{o.status}</span></td>
                         <td className="mono" style={{ fontSize: 12 }}>{o.opened_at}</td>
                         <td className="mono" style={{ fontSize: 12 }}>{kes(Number(o.labour_cost_kes || 0) + pTotal)}</td>

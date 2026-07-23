@@ -143,11 +143,11 @@ export default function Dashboard() {
                     <td className="primary">{v.name}</td>
                     <td className="mono">
                       {v.lastMonth.litres.toFixed(1)} L
-                      <span style={{ color: 'var(--text-dim)' }}> · KES {kes(v.lastMonth.kes)}</span>
+                      <span style={{ color: 'var(--text-faint)' }}> · KES {kes(v.lastMonth.kes)}</span>
                     </td>
                     <td className="mono">
                       {v.thisMonth.litres.toFixed(1)} L
-                      <span style={{ color: 'var(--text-dim)' }}> · KES {kes(v.thisMonth.kes)}</span>
+                      <span style={{ color: 'var(--text-faint)' }}> · KES {kes(v.thisMonth.kes)}</span>
                     </td>
                   </tr>
                 ))}
@@ -168,20 +168,20 @@ export default function Dashboard() {
 
           {/* active vehicle key stats */}
           <div className="fuel-stats-grid">
-            <div className="card"><div className="card-label">Current Odometer</div><div className="card-value">{currentOdo ? currentOdo.toLocaleString() : '—'} <span style={{ fontSize: 14, color: 'var(--text-mid)' }}>km</span></div><div className="card-sub">latest recorded</div></div>
+            <div className="card"><div className="card-label">Current Odometer</div><div className="card-value">{currentOdo ? currentOdo.toLocaleString() : '—'} <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>km</span></div><div className="card-sub">latest recorded</div></div>
             <div className="card">
               <div className="card-label">Distance · this month</div>
-              <div className="card-value">{kmMonth != null ? Math.round(kmMonth).toLocaleString() : '—'} <span style={{ fontSize: 13, color: 'var(--text-mid)' }}>km</span></div>
+              <div className="card-value">{kmMonth != null ? Math.round(kmMonth).toLocaleString() : '—'} <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>km</span></div>
               <div className="card-sub">{avgKmMonth != null ? `avg ${Math.round(avgKmMonth).toLocaleString()} km/mo` : 'avg —'}</div>
             </div>
             <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/fuel')}>
               <div className="card-label">Consumption</div>
-              <div className="card-value">{lkm ? lkm.toFixed(2) : '—'} <span style={{ fontSize: 13, color: 'var(--text-mid)' }}>L/100km</span></div>
+              <div className="card-value">{lkm ? lkm.toFixed(2) : '—'} <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>L/100km</span></div>
               <div className="card-sub">last 10 fills</div>
             </div>
             <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/fuel')}>
               <div className="card-label">Last Fill Range</div>
-              <div className="card-value">{fillRange ? Math.round(fillRange).toLocaleString() : '—'} <span style={{ fontSize: 13, color: 'var(--text-mid)' }}>km</span></div>
+              <div className="card-value">{fillRange ? Math.round(fillRange).toLocaleString() : '—'} <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>km</span></div>
               <div className="card-sub">{fillRange ? `${lastFillLitres.toFixed(1)} L at last 10-fill avg` : 'needs a fill + economy'}</div>
             </div>
             <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/snags')}>
@@ -239,7 +239,7 @@ export default function Dashboard() {
             ].map(({ label, s }) => (
               <div className="card" key={label}>
                 <div className="card-label">{label}</div>
-                <div className="card-value">{kes(s.mtd)} <span style={{ fontSize: 13, color: 'var(--text-mid)' }}>KES</span></div>
+                <div className="card-value">{kes(s.mtd)} <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>KES</span></div>
                 <div className="card-sub">last 30 days: KES {kes(s.d30)}</div>
               </div>
             ))}

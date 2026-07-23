@@ -352,7 +352,7 @@ export default function Ipc() {
                   <tr key={d.id} onClick={() => setSelectedDiagramId(d.id)} style={{ cursor: 'pointer' }}>
                     <td className={selectedDiagramId === d.id ? 'primary' : ''}>
                       {d.catalog_group}/{d.subgroup}
-                      <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{d.diagram_title}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{d.diagram_title}</div>
                     </td>
                     <td className="mono">{d.part_count}</td>
                   </tr>
@@ -390,7 +390,7 @@ export default function Ipc() {
                         <td>{part.name}</td>
                         <td className="mono">{part.quantity || '-'}</td>
                         <td className="mono">{part.replacement_numbers || '-'}</td>
-                        <td style={{ fontSize: 12, color: 'var(--text-dim)' }}>{[part.usage, part.remarks].filter(Boolean).join(' - ') || '-'}</td>
+                        <td style={{ fontSize: 12, color: 'var(--text-faint)' }}>{[part.usage, part.remarks].filter(Boolean).join(' - ') || '-'}</td>
                         <td>
                           <div className="ipc-part-actions">
                             <div className="row-actions">

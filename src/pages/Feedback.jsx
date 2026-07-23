@@ -131,7 +131,7 @@ export default function Feedback() {
                     <td>
                       <span className={`badge ${STATUS_BADGE[r.status] || 'badge'}`}>{r.status.replace('_', ' ')}</span>
                     </td>
-                    <td className="primary">{r.comment || <span style={{ color: 'var(--text-dim)' }}>—</span>}</td>
+                    <td className="primary">{r.comment || <span style={{ color: 'var(--text-faint)' }}>—</span>}</td>
                     <td>
                       <div className="row-actions">
                         {deleteConfirm === r.id ? (
@@ -151,7 +151,7 @@ export default function Feedback() {
                   </tr>
                   {editingId === r.id && (
                     <tr>
-                      <td colSpan={5} style={{ background: 'var(--charcoal)' }}>
+                      <td colSpan={5} style={{ background: 'var(--surface)' }}>
                         <div style={{ padding: '12px 8px', display: 'grid', gap: 10, maxWidth: 520 }}>
                           <div className="form-group">
                             <label>Type</label>
@@ -176,9 +176,9 @@ export default function Feedback() {
                   )}
                   {expanded === r.id && (
                     <tr>
-                      <td colSpan={5} style={{ background: 'var(--charcoal)' }}>
+                      <td colSpan={5} style={{ background: 'var(--surface)' }}>
                         <div style={{ padding: '12px 8px', display: 'grid', gap: 12 }}>
-                          <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+                          <div style={{ fontSize: 12, color: 'var(--text-faint)' }}>
                             {r.page_url} · {r.context?.vehicle_name || 'no vehicle'} · v{r.context?.app_version || '—'}
                           </div>
                           {r.screenshot_path &&
@@ -187,10 +187,10 @@ export default function Feedback() {
                                 <img src={shotUrls[r.id]} alt="screenshot" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--border)' }} />
                               </a>
                             ) : (
-                              <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>loading screenshot…</span>
+                              <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>loading screenshot…</span>
                             ))}
                           <div>
-                            <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 4 }}>Breadcrumbs ({(r.breadcrumbs || []).length})</div>
+                            <div style={{ fontSize: 12, color: 'var(--text-faint)', marginBottom: 4 }}>Breadcrumbs ({(r.breadcrumbs || []).length})</div>
                             <pre style={{ margin: 0, maxHeight: 240, overflow: 'auto', fontSize: 11, whiteSpace: 'pre-wrap' }}>
                               {(r.breadcrumbs || []).map(crumbLine).join('\n')}
                             </pre>

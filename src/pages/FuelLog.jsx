@@ -113,7 +113,7 @@ function ConsumptionTrend({ logs }) {
         </div>
       </div>
       {series.length < 2 ? (
-        <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)' }}>
+        <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)' }}>
           Not enough fills in this range
         </div>
       ) : (
@@ -213,7 +213,7 @@ function FuelForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
         <label>Volume (Litres) — Auto-calculated</label>
         <input type="number" step="0.001" value={form.volume_litres} readOnly required
           placeholder="Calculated from Cost and Price/Litre"
-          style={{ background: 'var(--charcoal)', color: 'var(--gold)', fontWeight: '500', cursor: 'not-allowed' }} />
+          style={{ background: 'var(--surface)', color: 'var(--accent)', fontWeight: '500', cursor: 'not-allowed' }} />
       </div>
 
       <div className="form-row-2">
@@ -458,7 +458,7 @@ export default function FuelLog() {
           <div className="card">
             <div className="card-label">Last Fill</div>
             <div className="card-value">
-              {Number(logs[0].total_cost_kes).toLocaleString()} <span style={{ fontSize: 14, color: 'var(--text-mid)' }}>KES</span>
+              {Number(logs[0].total_cost_kes).toLocaleString()} <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>KES</span>
             </div>
             <div className="card-sub">{logs[0].logged_at} · {Number(logs[0].volume_litres).toFixed(2)}L</div>
           </div>
@@ -473,7 +473,7 @@ export default function FuelLog() {
           </div>
           <div className="card">
             <div className="card-label">Current Odometer</div>
-            <div className="card-value">{Number(logs[0].odometer_km).toLocaleString()} <span style={{ fontSize: 14, color: 'var(--text-mid)' }}>km</span></div>
+            <div className="card-value">{Number(logs[0].odometer_km).toLocaleString()} <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>km</span></div>
             <div className="card-sub">
               {latest?.kmSince ? `+${Number(latest.kmSince).toLocaleString()} km since last fill` : 'First entry'}
             </div>
@@ -539,8 +539,8 @@ export default function FuelLog() {
                     </span>
                     {d.excluded && <span className="badge" style={{ marginLeft: 4 }}>excluded</span>}
                   </td>
-                  <td style={{ color: 'var(--text-dim)', fontSize: 12 }}>{log.station || '—'}</td>
-                  <td style={{ color: 'var(--text-dim)', fontSize: 12 }}>{log.driving_mode || '—'}</td>
+                  <td style={{ color: 'var(--text-faint)', fontSize: 12 }}>{log.station || '—'}</td>
+                  <td style={{ color: 'var(--text-faint)', fontSize: 12 }}>{log.driving_mode || '—'}</td>
                   <td>
                     <div className="row-actions">
                       <button className="row-btn" onClick={() => { setSelected(log); setView('edit') }}>Edit</button>

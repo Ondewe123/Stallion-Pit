@@ -173,7 +173,7 @@ function PartForm({ initial = EMPTY_FORM, onSave, onCancel, saving, lastOdometer
         <input type="text" readOnly
           value={total != null ? total.toLocaleString() : ''}
           placeholder="Quantity × Unit Cost"
-          style={{ background: 'var(--charcoal)', color: 'var(--gold)', fontWeight: '500', cursor: 'not-allowed' }} />
+          style={{ background: 'var(--surface)', color: 'var(--accent)', fontWeight: '500', cursor: 'not-allowed' }} />
       </div>
 
       <div className="form-row-2">
@@ -401,7 +401,7 @@ export default function PartsLog() {
           <div className="card">
             <div className="card-label">Total Spent</div>
             <div className="card-value">
-              {totalSpent.toLocaleString()} <span style={{ fontSize: 14, color: 'var(--text-mid)' }}>KES</span>
+              {totalSpent.toLocaleString()} <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>KES</span>
             </div>
             <div className="card-sub">on parts</div>
           </div>
@@ -427,7 +427,7 @@ export default function PartsLog() {
           </div>
           <div className="card">
             <div className="card-label">Current Odometer</div>
-            <div className="card-value">{currentOdo ? currentOdo.toLocaleString() : '—'} <span style={{ fontSize: 14, color: 'var(--text-mid)' }}>km</span></div>
+            <div className="card-value">{currentOdo ? currentOdo.toLocaleString() : '—'} <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>km</span></div>
             <div className="card-sub">highest recorded</div>
           </div>
         </div>
@@ -480,16 +480,16 @@ export default function PartsLog() {
                       <div>
                         {log.part_name}
                         {(log.brand || log.part_number || log.oem_number) && (
-                          <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>
+                          <div style={{ color: 'var(--text-faint)', fontSize: 11 }}>
                             {[log.brand, log.oem_number || log.part_number].filter(Boolean).join(' · ')}
                           </div>
                         )}
-                        {log.location && <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>📍 {log.location}</div>}
+                        {log.location && <div style={{ color: 'var(--text-faint)', fontSize: 11 }}>📍 {log.location}</div>}
                       </div>
                     </div>
                   </td>
-                  <td style={{ color: 'var(--text-dim)', fontSize: 12 }}>{log.category || '—'}</td>
-                  <td style={{ color: 'var(--text-dim)', fontSize: 12 }}>{log.supplier || '—'}</td>
+                  <td style={{ color: 'var(--text-faint)', fontSize: 12 }}>{log.category || '—'}</td>
+                  <td style={{ color: 'var(--text-faint)', fontSize: 12 }}>{log.supplier || '—'}</td>
                   <td className="mono">{log.quantity != null ? Number(log.quantity).toLocaleString() : '—'}</td>
                   <td className="mono">{log.total_cost_kes != null ? Number(log.total_cost_kes).toLocaleString() : '—'}</td>
                   <td>

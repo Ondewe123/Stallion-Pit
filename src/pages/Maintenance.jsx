@@ -313,7 +313,7 @@ export default function Maintenance() {
         </div>
       ) : (
         <div className="table-wrapper">
-          <div style={{ fontSize: 12, color: 'var(--text-dim)', padding: '0 0 8px 2px' }}>
+          <div style={{ fontSize: 12, color: 'var(--text-faint)', padding: '0 0 8px 2px' }}>
             Sorted by most due first — overdue, then soonest (km or date, whichever comes first)
           </div>
           <table className="data-table">
@@ -344,9 +344,9 @@ export default function Maintenance() {
                   <tr key={it.id}>
                     <td className="primary">
                       {it.item}
-                      {it.category && <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{it.category}</div>}
-                      {it.parts_needed && <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>🔧 {it.parts_needed}</div>}
-                      {it.torque_spec && <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>🔩 {it.torque_spec}</div>}
+                      {it.category && <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{it.category}</div>}
+                      {it.parts_needed && <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>🔧 {it.parts_needed}</div>}
+                      {it.torque_spec && <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>🔩 {it.torque_spec}</div>}
                     </td>
                     <td>
                       <span className={`badge ${pri.badge}`}>{pri.label}</span>
@@ -356,7 +356,7 @@ export default function Maintenance() {
                     <td className="mono" style={{ fontSize: 12 }}>{nextDue}</td>
                     <td style={{ fontSize: 12 }}>
                       {kmText(it.remKm) && <div>{kmText(it.remKm)}</div>}
-                      {dayText(it.remDays) && <div style={{ color: 'var(--text-dim)' }}>{dayText(it.remDays)}</div>}
+                      {dayText(it.remDays) && <div style={{ color: 'var(--text-faint)' }}>{dayText(it.remDays)}</div>}
                       {it.remKm == null && it.remDays == null && '—'}
                     </td>
                     <td><span className={`badge ${meta.badge}`}>{meta.label}</span></td>

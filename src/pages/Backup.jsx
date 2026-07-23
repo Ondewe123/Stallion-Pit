@@ -112,7 +112,7 @@ export default function Backup() {
           {busy === 'download' ? 'Preparing…' : '⬇ Download backup'}
         </button>
         {counts && (
-          <div style={{ marginTop: 12, fontSize: 13, color: 'var(--text-dim)' }}>
+          <div style={{ marginTop: 12, fontSize: 13, color: 'var(--text-faint)' }}>
             Saved: {counts.map(c => `${c.count} ${c.table}`).join(' · ') || 'no data'}
           </div>
         )}
@@ -138,7 +138,7 @@ export default function Backup() {
               <strong>{pending.fileName}</strong>
               {pending.backup.metadata?.exported_at && <> · exported {new Date(pending.backup.metadata.exported_at).toLocaleString()}</>}
             </div>
-            <div style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 12 }}>
+            <div style={{ fontSize: 13, color: 'var(--text-faint)', marginBottom: 12 }}>
               Will restore: {pending.summary.map(c => `${c.count} ${c.table}`).join(' · ') || 'no data'}
             </div>
             <div className="form-group" style={{ maxWidth: 280 }}>
@@ -155,7 +155,7 @@ export default function Backup() {
           </div>
         )}
 
-        {busy === 'restore' && <div style={{ marginTop: 12, fontSize: 13, color: 'var(--gold)' }}>{step}</div>}
+        {busy === 'restore' && <div style={{ marginTop: 12, fontSize: 13, color: 'var(--accent)' }}>{step}</div>}
         {done && <div style={{ marginTop: 12, fontSize: 13, color: '#27ae60' }}>{done}</div>}
       </div>
     </div>

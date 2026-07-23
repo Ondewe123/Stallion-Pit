@@ -222,13 +222,13 @@ export default function ServiceLog() {
           <div className="card">
             <div className="card-label">Total Spent</div>
             <div className="card-value">
-              {totalSpent.toLocaleString()} <span style={{ fontSize: 14, color: 'var(--text-mid)' }}>KES</span>
+              {totalSpent.toLocaleString()} <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>KES</span>
             </div>
             <div className="card-sub">across all services</div>
           </div>
           <div className="card">
             <div className="card-label">Current Odometer</div>
-            <div className="card-value">{currentOdo ? currentOdo.toLocaleString() : '—'} <span style={{ fontSize: 14, color: 'var(--text-mid)' }}>km</span></div>
+            <div className="card-value">{currentOdo ? currentOdo.toLocaleString() : '—'} <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>km</span></div>
             <div className="card-sub">highest recorded at service</div>
           </div>
           <div className="card">
@@ -268,9 +268,9 @@ export default function ServiceLog() {
                   <td className="mono">{log.serviced_at}</td>
                   <td className="mono">{log.odometer_km ? Number(log.odometer_km).toLocaleString() : '—'}</td>
                   <td><span className="badge badge-amber">{log.category}</span></td>
-                  <td style={{ color: 'var(--text-dim)', fontSize: 12 }}>{log.workshop || '—'}</td>
+                  <td style={{ color: 'var(--text-faint)', fontSize: 12 }}>{log.workshop || '—'}</td>
                   <td className="mono primary">{Number(log.total_cost_kes).toLocaleString()}</td>
-                  <td style={{ color: 'var(--text-dim)', fontSize: 12 }}>{log.next_service_note || '—'}</td>
+                  <td style={{ color: 'var(--text-faint)', fontSize: 12 }}>{log.next_service_note || '—'}</td>
                   <td>
                     <div className="row-actions">
                       <button className="row-btn" onClick={() => { setSelected(log); setView('edit') }}>Edit</button>

@@ -24,7 +24,7 @@ function Stat({ label, value, unit, sub }) {
   return (
     <div className="card">
       <div className="card-label">{label}</div>
-      <div className="card-value">{value}{unit && <span style={{ fontSize: 13, color: 'var(--text-mid)' }}> {unit}</span>}</div>
+      <div className="card-value">{value}{unit && <span style={{ fontSize: 13, color: 'var(--text-muted)' }}> {unit}</span>}</div>
       {sub && <div className="card-sub">{sub}</div>}
     </div>
   )
@@ -36,7 +36,7 @@ function ChartCard({ title, sub, children, empty }) {
       <div className="card-label" style={{ marginBottom: 2 }}>{title}</div>
       <div className="card-sub" style={{ marginBottom: 10 }}>{sub}</div>
       {empty ? (
-        <div style={{ height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)' }}>
+        <div style={{ height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)' }}>
           Not enough data for this range
         </div>
       ) : (

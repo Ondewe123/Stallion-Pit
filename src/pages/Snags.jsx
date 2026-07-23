@@ -357,11 +357,11 @@ function SnagForm({
                     <div style={{ minWidth: 0 }}>
                       <strong className="mono">{part.part_number}</strong>
                       {part.item_no && <span className="badge" style={{ marginLeft: 8 }}>Item {part.item_no}</span>}
-                      <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>
+                      <div style={{ color: 'var(--text-faint)', fontSize: 12 }}>
                         {[part.name, part.diagram_title].filter(Boolean).join(' - ')}
                       </div>
                       {part.superseded_numbers?.length > 0 && (
-                        <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>
+                        <div style={{ color: 'var(--text-faint)', fontSize: 11 }}>
                           Replaces older: {part.superseded_numbers.join(', ')}
                         </div>
                       )}
@@ -419,21 +419,21 @@ function SnagForm({
                               {part.item_no && <span className="badge" style={{ marginLeft: 8 }}>Item {part.item_no}</span>}
                             </div>
                           </div>
-                          <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>{part.name}</div>
-                          <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>
+                          <div style={{ color: 'var(--text-faint)', fontSize: 11 }}>{part.name}</div>
+                          <div style={{ color: 'var(--text-faint)', fontSize: 11 }}>
                             {[part.catalog_group && `Group ${part.catalog_group}/${part.subgroup || '-'}`, part.diagram_title].filter(Boolean).join(' - ')}
                           </div>
                           {part.replacement_numbers && (
-                            <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>Superseded by: {part.replacement_numbers}</div>
+                            <div style={{ color: 'var(--text-faint)', fontSize: 11 }}>Superseded by: {part.replacement_numbers}</div>
                           )}
                           {part.superseded_numbers?.length > 0 && (
-                            <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>Replaces older: {part.superseded_numbers.join(', ')}</div>
+                            <div style={{ color: 'var(--text-faint)', fontSize: 11 }}>Replaces older: {part.superseded_numbers.join(', ')}</div>
                           )}
                         </td>
                         <td className="mono">{[part.catalog_group, part.subgroup].filter(Boolean).join('/') || '—'}</td>
                         <td>
                           {part.diagram_title || '—'}
-                          {part.usage && <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>{part.usage}</div>}
+                          {part.usage && <div style={{ color: 'var(--text-faint)', fontSize: 11 }}>{part.usage}</div>}
                         </td>
                         <td>
                           <button type="button" className="row-btn vehicle-tab-active"
@@ -847,15 +847,15 @@ export default function Snags() {
                   <td className="primary">
                     {log.title} {log.is_recurring && <span title="Recurring issue" style={{ color: '#e67e22' }}>↻</span>}
                     {(log.suspected_system || (log.conditions && log.conditions.length > 0)) && (
-                      <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>
+                      <div style={{ color: 'var(--text-faint)', fontSize: 11 }}>
                         {[log.suspected_system, (log.conditions || []).join(', ')].filter(Boolean).join(' · ')}
                       </div>
                     )}
                     {log.resolved_at && (
-                      <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>resolved {log.resolved_at}</div>
+                      <div style={{ color: 'var(--text-faint)', fontSize: 11 }}>resolved {log.resolved_at}</div>
                     )}
                     {(log.snag_ipc_parts || []).length > 0 && (
-                      <div style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 3 }}>
+                      <div style={{ color: 'var(--text-faint)', fontSize: 11, marginTop: 3 }}>
                         IPC: {(log.snag_ipc_parts || []).map(link => {
                           const part = link.ipc_parts || {}
                           return `${part.part_number}${link.quantity_needed ? ` x${Number(link.quantity_needed).toLocaleString()}` : ''}`

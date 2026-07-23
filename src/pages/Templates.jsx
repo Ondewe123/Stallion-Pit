@@ -204,7 +204,7 @@ export default function Templates() {
             <p className="page-sub">
               {[selectedTpl.make, selectedTpl.model, selectedTpl.engine_code].filter(Boolean).join(' · ') || 'Custom template'} · {items.length} items
             </p>
-            {selectedTpl.notes && <p className="page-sub" style={{ color: 'var(--text-dim)' }}>{selectedTpl.notes}</p>}
+            {selectedTpl.notes && <p className="page-sub" style={{ color: 'var(--text-faint)' }}>{selectedTpl.notes}</p>}
           </div>
           <div className="row-actions" style={{ flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             <button className="btn-primary" style={{ width: 'auto', padding: '8px 16px' }} onClick={startApply} disabled={!activeVehicle}>
@@ -224,11 +224,11 @@ export default function Templates() {
         {error && <div className="form-error">{error}</div>}
 
         {apply && (
-          <div className="card" style={{ marginBottom: 16, borderColor: 'var(--gold)' }}>
+          <div className="card" style={{ marginBottom: 16, borderColor: 'var(--accent)' }}>
             <div className="card-label">Apply “{selectedTpl.name}” to {activeVehicle?.name}</div>
             <p style={{ margin: '8px 0' }}>
               Will <strong>add {apply.preview.toInsert.length}</strong> new item{apply.preview.toInsert.length === 1 ? '' : 's'}
-              {apply.preview.skipped.length > 0 && <> · <span style={{ color: 'var(--text-dim)' }}>skip {apply.preview.skipped.length} already on this vehicle ({apply.preview.skipped.join(', ')})</span></>}.
+              {apply.preview.skipped.length > 0 && <> · <span style={{ color: 'var(--text-faint)' }}>skip {apply.preview.skipped.length} already on this vehicle ({apply.preview.skipped.join(', ')})</span></>}.
               Existing items and their history are never changed.
             </p>
             <div className="row-actions">
@@ -254,14 +254,14 @@ export default function Templates() {
                   const pri = PRIORITY[it.priority] || PRIORITY[3]
                   return (
                     <tr key={it.id}>
-                      <td className="primary">{it.item}{it.category && <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{it.category}</div>}</td>
+                      <td className="primary">{it.item}{it.category && <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{it.category}</div>}</td>
                       <td className="mono" style={{ fontSize: 12 }}>{interval}</td>
                       <td><span className={`badge ${pri.badge}`}>{pri.label}</span></td>
                       <td>{it.diy_difficulty ? <span className={`badge ${DIFF_BADGE[it.diy_difficulty] || 'badge'}`}>{it.diy_difficulty}</span> : '—'}</td>
                       <td style={{ fontSize: 12 }}>
                         {it.parts_needed && <div>{it.parts_needed}</div>}
-                        {it.consumables_needed && <div style={{ color: 'var(--text-dim)' }}>{it.consumables_needed}</div>}
-                        {it.torque_spec && <div style={{ color: 'var(--text-dim)' }}>🔩 {it.torque_spec}</div>}
+                        {it.consumables_needed && <div style={{ color: 'var(--text-faint)' }}>{it.consumables_needed}</div>}
+                        {it.torque_spec && <div style={{ color: 'var(--text-faint)' }}>🔩 {it.torque_spec}</div>}
                         {!it.parts_needed && !it.consumables_needed && !it.torque_spec && '—'}
                       </td>
                       <td>

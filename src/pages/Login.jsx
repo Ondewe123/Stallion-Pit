@@ -66,7 +66,7 @@ export default function Login() {
           </button>
         </form>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0', color: 'var(--text-dim)', fontSize: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0', color: 'var(--text-faint)', fontSize: 12 }}>
           <span style={{ flex: 1, height: 1, background: 'var(--border)' }} />
           OR
           <span style={{ flex: 1, height: 1, background: 'var(--border)' }} />

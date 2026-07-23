@@ -184,7 +184,7 @@ export default function Documents() {
                   const link = linkLabel(doc)
                   return (
                     <div key={doc.id} className="fleet-card" style={{ cursor: 'default' }}>
-                      <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--charcoal, #161616)', borderRadius: 4, overflow: 'hidden', marginBottom: 8 }}>
+                      <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface, #161616)', borderRadius: 4, overflow: 'hidden', marginBottom: 8 }}>
                         {thumbs[doc.id]
                           ? <img src={thumbs[doc.id]} alt={doc.title || doc.file_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           : <span style={{ fontSize: 40 }}>📄</span>}
@@ -194,8 +194,8 @@ export default function Documents() {
                         <span className={`badge ${KIND_BADGE[doc.kind] || 'badge'}`}>{doc.kind}</span>
                       </div>
                       <div className="fleet-card-make" style={{ fontSize: 12 }}>{doc.file_name} · {fmtSize(doc.file_size)}</div>
-                      {link && <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>{link}</div>}
-                      {doc.note && <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>{doc.note}</div>}
+                      {link && <div style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 4 }}>{link}</div>}
+                      {doc.note && <div style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 4 }}>{doc.note}</div>}
                       <div className="row-actions" style={{ marginTop: 8 }}>
                         <button className="row-btn" onClick={() => download(doc)}>Download</button>
                         {deleteConfirm === doc.id ? (

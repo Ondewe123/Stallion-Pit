@@ -178,8 +178,8 @@ export default function Dtc() {
                         <td className="mono">{d.logged_at}</td>
                         <td className="primary">
                           <span className="mono">{d.code}</span> {d.returned && <span title="Returned after clearing" style={{ color: '#e67e22' }}>↻</span>}
-                          {d.description && <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{d.description}</div>}
-                          {d.module && <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{d.module}</div>}
+                          {d.description && <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{d.description}</div>}
+                          {d.module && <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{d.module}</div>}
                         </td>
                         <td><span className={`badge ${STATE_BADGE[d.code_state] || 'badge'}`}>{d.code_state}</span></td>
                         <td><span className={`badge ${LIFE_BADGE[life]}`}>{life}</span></td>
