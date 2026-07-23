@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useTheme } from '../contexts/ThemeContext'
 import { record } from '../lib/feedback/breadcrumbs'
 import FeedbackButton from './Feedback/FeedbackButton'
 import VehicleSelector from './VehicleSelector'
@@ -27,10 +28,13 @@ const MORE_ITEMS = NAV_ITEMS.filter(i => i.desktopOnly)
 
 export default function Layout() {
   const { user, signOut } = useAuth()
+  const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
   const location = useLocation()
   const [collapsed, setCollapsed] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
+
+  const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark')
 
   useEffect(() => {
     record({ kind: 'nav', route: location.pathname })
@@ -71,6 +75,9 @@ export default function Layout() {
 
         <div className="sidebar-footer">
           {!collapsed && <div className="sidebar-user">{user?.email}</div>}
+          <button className="btn-secondary" onClick={toggleTheme} title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}>
+            {collapsed ? (theme === 'dark' ? '☀️' : '🌙') : (theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode')}
+          </button>
           <button className="btn-signout" onClick={handleSignOut} title="Sign out">
             {collapsed ? '⏻' : 'Sign Out'}
           </button>
@@ -82,6 +89,9 @@ export default function Layout() {
         <span className="logo-text">STALLION <span className="logo-accent">PIT</span></span>
         <div className="mobile-topbar-right">
           <VehicleSelector />
+          <button className="btn-signout mobile-signout" onClick={toggleTheme} title="Toggle theme">
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
           <button className="btn-signout mobile-signout" onClick={handleSignOut} title="Sign out">⏻</button>
         </div>
       </header>
