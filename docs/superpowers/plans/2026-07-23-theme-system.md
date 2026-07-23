@@ -273,21 +273,21 @@ and will be fixed in the next commit."
 
 ---
 
-### Task 2: Bulk-rename `var(--old-name)` references across JSX files
+### Task 2: Bulk-rename `var(--old-name)` references across index.css and JSX files
 
 **Files:**
-- Modify (via `sed`, not Edit): `src/pages/Analysis.jsx`, `src/pages/Backup.jsx`, `src/pages/Dashboard.jsx`, `src/pages/Documents.jsx`, `src/pages/Dtc.jsx`, `src/pages/Feedback.jsx`, `src/pages/FuelLog.jsx`, `src/pages/Ipc.jsx`, `src/pages/Login.jsx`, `src/pages/Maintenance.jsx`, `src/pages/PartsLog.jsx`, `src/pages/ServiceLog.jsx`, `src/pages/Snags.jsx`, `src/pages/Templates.jsx`, `src/pages/WorkOrders.jsx`
+- Modify (via `sed`, not Edit): `src/index.css` (the ~900 lines of component styles below the root token block — sidebar, nav, buttons, forms, tables, fleet cards, fuel log, IPC, feedback widget, etc. — which Task 1 did not touch except for 5 specific hand-fixed spots), `src/pages/Analysis.jsx`, `src/pages/Backup.jsx`, `src/pages/Dashboard.jsx`, `src/pages/Documents.jsx`, `src/pages/Dtc.jsx`, `src/pages/Feedback.jsx`, `src/pages/FuelLog.jsx`, `src/pages/Ipc.jsx`, `src/pages/Login.jsx`, `src/pages/Maintenance.jsx`, `src/pages/PartsLog.jsx`, `src/pages/ServiceLog.jsx`, `src/pages/Snags.jsx`, `src/pages/Templates.jsx`, `src/pages/WorkOrders.jsx`
 
 **Interfaces:**
 - Consumes: the token names produced by Task 1.
-- Produces: every `var(--...)` reference in these 15 files now uses the new semantic names, matching `src/index.css`.
+- Produces: every `var(--...)` reference in `index.css` and these 15 page files now uses the new semantic names. Safe to run on `index.css` after Task 1's manual fixes — none of the new token names (`--danger-soft`, `--danger-strong`, etc.) contain any old name as a substring, so the already-fixed badge/login-error/form-error/row-btn-danger rules pass through unchanged.
 
 - [ ] **Step 1: Run the rename**
 
 The old→new mapping (order matters — longer/more-specific names first so e.g. `--red-bg` is fully replaced before the bare `--red` pass runs):
 
 ```bash
-FILES="src/pages/Analysis.jsx src/pages/Backup.jsx src/pages/Dashboard.jsx src/pages/Documents.jsx src/pages/Dtc.jsx src/pages/Feedback.jsx src/pages/FuelLog.jsx src/pages/Ipc.jsx src/pages/Login.jsx src/pages/Maintenance.jsx src/pages/PartsLog.jsx src/pages/ServiceLog.jsx src/pages/Snags.jsx src/pages/Templates.jsx src/pages/WorkOrders.jsx"
+FILES="src/index.css src/pages/Analysis.jsx src/pages/Backup.jsx src/pages/Dashboard.jsx src/pages/Documents.jsx src/pages/Dtc.jsx src/pages/Feedback.jsx src/pages/FuelLog.jsx src/pages/Ipc.jsx src/pages/Login.jsx src/pages/Maintenance.jsx src/pages/PartsLog.jsx src/pages/ServiceLog.jsx src/pages/Snags.jsx src/pages/Templates.jsx src/pages/WorkOrders.jsx"
 
 sed -i \
   -e 's/--gold-glow/--accent-soft/g' \
@@ -333,12 +333,13 @@ Expected: build succeeds.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/pages/*.jsx
+git add src/index.css src/pages/*.jsx
 git commit -m "refactor(theme): rename CSS var references to match new token names
 
-Mechanical find-and-replace across all pages that referenced the old
-literal token names (--charcoal, --gold, --text-dim, ...) in inline
-styles. No visual or logic change — dark theme renders identically."
+Mechanical find-and-replace across index.css's component styles and
+every page that referenced the old literal token names (--charcoal,
+--gold, --text-dim, ...). No visual or logic change — dark theme
+renders identically."
 ```
 
 ---
