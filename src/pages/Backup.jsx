@@ -120,10 +120,10 @@ export default function Backup() {
       </div>
 
       {/* Restore */}
-      <div className="card" style={{ borderColor: '#e74c3c' }}>
+      <div className="card" style={{ borderColor: 'var(--danger-strong)' }}>
         <div className="card-label">Restore from backup</div>
         <p style={{ margin: '8px 0' }}>
-          <strong style={{ color: '#e74c3c' }}>This replaces ALL your current data</strong> with the contents of the file.
+          <strong style={{ color: 'var(--danger-strong)' }}>This replaces ALL your current data</strong> with the contents of the file.
           Download a fresh backup first if you might want today’s state back.
         </p>
 
@@ -156,7 +156,7 @@ export default function Backup() {
         )}
 
         {busy === 'restore' && <div style={{ marginTop: 12, fontSize: 13, color: 'var(--accent)' }}>{step}</div>}
-        {done && <div style={{ marginTop: 12, fontSize: 13, color: '#27ae60' }}>{done}</div>}
+        {done && <div style={{ marginTop: 12, fontSize: 13, color: 'var(--success-strong)' }}>{done}</div>}
       </div>
     </div>
   )

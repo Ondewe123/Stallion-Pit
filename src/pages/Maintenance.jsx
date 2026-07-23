@@ -288,12 +288,12 @@ export default function Maintenance() {
         <div className="fuel-stats-grid">
           <div className="card">
             <div className="card-label">Overdue</div>
-            <div className="card-value" style={{ color: overdueCount ? '#e74c3c' : undefined }}>{overdueCount}</div>
+            <div className="card-value" style={{ color: overdueCount ? 'var(--danger-strong)' : undefined }}>{overdueCount}</div>
             <div className="card-sub">past due</div>
           </div>
           <div className="card">
             <div className="card-label">Due Soon</div>
-            <div className="card-value" style={{ color: soonCount ? '#f39c12' : undefined }}>{soonCount}</div>
+            <div className="card-value" style={{ color: soonCount ? 'var(--warning-strong)' : undefined }}>{soonCount}</div>
             <div className="card-sub">within {DUE_SOON_KM.toLocaleString()} km / {DUE_SOON_DAYS} d</div>
           </div>
           <div className="card">

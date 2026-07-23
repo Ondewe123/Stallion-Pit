@@ -114,12 +114,12 @@ export default function Dashboard() {
         <div className="card"><div className="card-label">Vehicles</div><div className="card-value">{vehicles.length}</div><div className="card-sub">in the fleet</div></div>
         <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/snags')}>
           <div className="card-label">Open Snags</div>
-          <div className="card-value" style={{ color: fleetOpenSnags ? '#e74c3c' : undefined }}>{fleetOpenSnags}</div>
+          <div className="card-value" style={{ color: fleetOpenSnags ? 'var(--danger-strong)' : undefined }}>{fleetOpenSnags}</div>
           <div className="card-sub">fleet-wide</div>
         </div>
         <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/maintenance')}>
           <div className="card-label">Overdue Maint.</div>
-          <div className="card-value" style={{ color: fleetOverdue ? '#e74c3c' : undefined }}>{fleetOverdue}</div>
+          <div className="card-value" style={{ color: fleetOverdue ? 'var(--danger-strong)' : undefined }}>{fleetOverdue}</div>
           <div className="card-sub">fleet-wide</div>
         </div>
       </div>
@@ -186,7 +186,7 @@ export default function Dashboard() {
             </div>
             <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/snags')}>
               <div className="card-label">Open Snags</div>
-              <div className="card-value" style={{ color: openSnags.length ? '#f39c12' : undefined }}>{openSnags.length}</div>
+              <div className="card-value" style={{ color: openSnags.length ? 'var(--warning-strong)' : undefined }}>{openSnags.length}</div>
               <div className="card-sub">{openSnags.filter(s => ['High', 'Critical'].includes(s.severity)).length} high/critical</div>
             </div>
             <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/maintenance')}>

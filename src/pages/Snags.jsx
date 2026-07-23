@@ -799,12 +799,12 @@ export default function Snags() {
           </div>
           <div className="card">
             <div className="card-label">Needs Attention</div>
-            <div className="card-value" style={{ color: needsAttention ? '#e74c3c' : undefined }}>{needsAttention}</div>
+            <div className="card-value" style={{ color: needsAttention ? 'var(--danger-strong)' : undefined }}>{needsAttention}</div>
             <div className="card-sub">High / Critical &amp; open</div>
           </div>
           <div className="card">
             <div className="card-label">Safety-critical</div>
-            <div className="card-value" style={{ color: safetyCritical ? '#e74c3c' : undefined }}>{safetyCritical}</div>
+            <div className="card-value" style={{ color: safetyCritical ? 'var(--danger-strong)' : undefined }}>{safetyCritical}</div>
             <div className="card-sub">affects safety &amp; open</div>
           </div>
           <div className="card">
@@ -845,7 +845,7 @@ export default function Snags() {
                 <tr key={log.id}>
                   <td className="mono">{log.reported_at}</td>
                   <td className="primary">
-                    {log.title} {log.is_recurring && <span title="Recurring issue" style={{ color: '#e67e22' }}>↻</span>}
+                    {log.title} {log.is_recurring && <span title="Recurring issue" style={{ color: 'var(--warning-strong)' }}>↻</span>}
                     {(log.suspected_system || (log.conditions && log.conditions.length > 0)) && (
                       <div style={{ color: 'var(--text-faint)', fontSize: 11 }}>
                         {[log.suspected_system, (log.conditions || []).join(', ')].filter(Boolean).join(' · ')}

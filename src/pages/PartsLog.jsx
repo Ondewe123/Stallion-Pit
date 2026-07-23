@@ -412,7 +412,7 @@ export default function PartsLog() {
           </div>
           <div className="card">
             <div className="card-label">Under Warranty</div>
-            <div className="card-value" style={{ color: underWarranty ? '#27ae60' : undefined }}>{underWarranty}</div>
+            <div className="card-value" style={{ color: underWarranty ? 'var(--success-strong)' : undefined }}>{underWarranty}</div>
             <div className="card-sub">cover still active</div>
           </div>
           <div className="card">

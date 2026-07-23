@@ -154,8 +154,8 @@ export default function Dtc() {
 
       {codes.length > 0 && (
         <div className="fuel-stats-grid">
-          <div className="card"><div className="card-label">Active</div><div className="card-value" style={{ color: activeCount ? '#f39c12' : undefined }}>{activeCount}</div><div className="card-sub">not cleared</div></div>
-          <div className="card"><div className="card-label">Returned</div><div className="card-value" style={{ color: returnedCount ? '#e74c3c' : undefined }}>{returnedCount}</div><div className="card-sub">came back after clearing</div></div>
+          <div className="card"><div className="card-label">Active</div><div className="card-value" style={{ color: activeCount ? 'var(--warning-strong)' : undefined }}>{activeCount}</div><div className="card-sub">not cleared</div></div>
+          <div className="card"><div className="card-label">Returned</div><div className="card-value" style={{ color: returnedCount ? 'var(--danger-strong)' : undefined }}>{returnedCount}</div><div className="card-sub">came back after clearing</div></div>
           <div className="card"><div className="card-label">Total</div><div className="card-value">{codes.length}</div><div className="card-sub">all codes</div></div>
         </div>
       )}
@@ -177,7 +177,7 @@ export default function Dtc() {
                       <tr key={d.id}>
                         <td className="mono">{d.logged_at}</td>
                         <td className="primary">
-                          <span className="mono">{d.code}</span> {d.returned && <span title="Returned after clearing" style={{ color: '#e67e22' }}>↻</span>}
+                          <span className="mono">{d.code}</span> {d.returned && <span title="Returned after clearing" style={{ color: 'var(--warning-strong)' }}>↻</span>}
                           {d.description && <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{d.description}</div>}
                           {d.module && <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{d.module}</div>}
                         </td>

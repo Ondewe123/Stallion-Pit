@@ -525,7 +525,7 @@ export default function FuelLog() {
                   <td className="mono">
                     {d.kmSince != null ? `+${Number(d.kmSince).toLocaleString()}` : '—'}
                     {d.daysSince != null && d.daysSince > GAP_HINT_DAYS && (
-                      <span style={{ color: '#e0a030', fontSize: 11 }}> · {d.daysSince}d ⚠</span>
+                      <span style={{ color: 'var(--warning-strong)', fontSize: 11 }}> · {d.daysSince}d ⚠</span>
                     )}
                   </td>
                   <td className="mono">{Number(log.volume_litres).toFixed(3)}</td>

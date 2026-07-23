@@ -465,7 +465,7 @@ export default function Fleet() {
         </button>
       </div>
       {renewalsDue > 0 && (
-        <div className="card" style={{ marginBottom: 16, borderColor: '#e74c3c' }}>
+        <div className="card" style={{ marginBottom: 16, borderColor: 'var(--danger-strong)' }}>
           <div className="card-label">⏰ Renewals</div>
           <div>{renewalsDue} vehicle{renewalsDue === 1 ? '' : 's'} with insurance / inspection / licence due soon or overdue — open the vehicle to see details.</div>
         </div>
