@@ -1,5 +1,17 @@
-import { useState, useEffect, useCallback, Fragment } from 'react'
-import { listReports, updateReportStatus, updateReport, deleteReport, screenshotUrl } from '../lib/feedback/reports'
+import React, { useState, useEffect, useCallback, Fragment } from 'react'
+import {
+  TERMINAL_OUTCOMES,
+  listReports,
+  updateReportStatus,
+  updateReport,
+  updateReportResolution,
+  reopenReport,
+  deleteReport,
+  screenshotUrl,
+} from '../lib/feedback/reports'
+import FeedbackResolutionForm from '../components/Feedback/FeedbackResolutionForm'
+
+void React
 
 const TYPES = ['bug', 'error', 'idea']
 
@@ -11,8 +23,12 @@ const FILTERS = [
 ]
 const TYPE_BADGE = { bug: 'badge-amber', error: 'badge-red', idea: 'badge-green' }
 const STATUS_BADGE = { open: 'badge-amber', in_progress: 'badge-gold', resolved: 'badge-green' }
-const NEXT_STATUS = { open: 'in_progress', in_progress: 'resolved', resolved: 'open' }
-const NEXT_LABEL = { open: 'Start', in_progress: 'Resolve', resolved: 'Reopen' }
+const OUTCOME_LABELS = {
+  resolved: 'Verified resolved',
+  duplicate: 'Duplicate',
+  cannot_reproduce: 'Cannot reproduce',
+}
+const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'
 
 const crumbLine = (b) => {
   const time = b.t?.split('T')[1]?.replace('Z', '') || ''
@@ -34,6 +50,10 @@ export default function Feedback() {
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState({ comment: '', type: 'bug' })
   const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [reopenConfirm, setReopenConfirm] = useState(null)
+  const [resolvingId, setResolvingId] = useState(null)
+  const [allReports, setAllReports] = useState(null)
+  const [actionError, setActionError] = useState(null)
   const [saving, setSaving] = useState(false)
 
   const fetchReports = useCallback(async () => {
@@ -44,8 +64,18 @@ export default function Feedback() {
   }, [filter])
 
   useEffect(() => {
-    fetchReports()
+    void Promise.resolve().then(fetchReports)
   }, [fetchReports])
+
+  const loadAllReports = async () => {
+    if (filter === 'all' || allReports) return
+    const { data, error } = await listReports('all')
+    if (error) {
+      setActionError(error.message || String(error))
+      return
+    }
+    setAllReports(data || [])
+  }
 
   const toggle = async (r) => {
     if (expanded === r.id) {
@@ -53,19 +83,85 @@ export default function Feedback() {
       return
     }
     setExpanded(r.id)
+    if (r.status === 'resolved' && r.disposition === 'duplicate') await loadAllReports()
     if (r.screenshot_path && !shotUrls[r.id]) {
       const url = await screenshotUrl(r.screenshot_path)
       setShotUrls((p) => ({ ...p, [r.id]: url }))
     }
   }
 
+  const startResolution = async (r) => {
+    setActionError(null)
+    setReopenConfirm(null)
+    setResolvingId(r.id)
+    await loadAllReports()
+  }
+
   const advance = async (r) => {
-    await updateReportStatus(r.id, NEXT_STATUS[r.status])
-    await fetchReports()
+    if (r.status === 'in_progress') {
+      await startResolution(r)
+      return
+    }
+    if (r.status === 'resolved') {
+      setActionError(null)
+      setReopenConfirm(r.id)
+      return
+    }
+    setSaving(true)
+    setActionError(null)
+    try {
+      const { error } = await updateReportStatus(r.id, 'in_progress')
+      if (error) {
+        setActionError(error)
+        return
+      }
+      await fetchReports()
+    } catch (error) {
+      setActionError(error?.message || 'Unable to start this report.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const saveResolution = async (r, input) => {
+    setSaving(true)
+    setActionError(null)
+    try {
+      const { error } = await updateReportResolution(r.id, input)
+      if (error) {
+        setActionError(error)
+        return
+      }
+      setResolvingId(null)
+      await fetchReports()
+    } catch (error) {
+      setActionError(error?.message || 'Unable to save this resolution.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const confirmReopen = async (r) => {
+    setSaving(true)
+    setActionError(null)
+    try {
+      const { error } = await reopenReport(r.id)
+      if (error) {
+        setActionError(error)
+        return
+      }
+      setReopenConfirm(null)
+      await fetchReports()
+    } catch (error) {
+      setActionError(error?.message || 'Unable to reopen this report.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const startEdit = (r) => {
     setDeleteConfirm(null)
+    setActionError(null)
     setEditingId(r.id)
     setEditForm({ comment: r.comment || '', type: r.type || 'bug' })
   }
@@ -84,6 +180,13 @@ export default function Feedback() {
     await fetchReports()
   }
 
+  const resolutionReports = filter === 'all' ? reports : allReports || reports
+  const outcomeLabel = (r) => {
+    const outcome = r.disposition || 'resolved'
+    return TERMINAL_OUTCOMES.includes(outcome) ? OUTCOME_LABELS[outcome] : OUTCOME_LABELS.resolved
+  }
+  const canonicalReport = (r) => (allReports || reports).find((candidate) => candidate.id === r.canonical_report_id)
+
   return (
     <div className="page">
       <div className="page-header">
@@ -98,6 +201,7 @@ export default function Feedback() {
           </button>
         ))}
       </div>
+      {actionError && !resolvingId && <div className="form-error">{actionError}</div>}
 
       {loading ? (
         <div className="placeholder-card">
@@ -139,10 +243,17 @@ export default function Feedback() {
                             <button className="row-btn row-btn-danger" onClick={(e) => { e.stopPropagation(); doDelete(r) }}>Confirm</button>
                             <button className="row-btn" onClick={(e) => { e.stopPropagation(); setDeleteConfirm(null) }}>Cancel</button>
                           </>
+                        ) : reopenConfirm === r.id ? (
+                          <>
+                            <button className="row-btn" onClick={(e) => { e.stopPropagation(); confirmReopen(r) }} disabled={saving}>Confirm reopen</button>
+                            <button className="row-btn" onClick={(e) => { e.stopPropagation(); setReopenConfirm(null) }} disabled={saving}>Cancel</button>
+                          </>
                         ) : (
                           <>
                             <button className="row-btn" onClick={(e) => { e.stopPropagation(); startEdit(r) }}>Edit</button>
-                            <button className="row-btn" onClick={(e) => { e.stopPropagation(); advance(r) }}>{NEXT_LABEL[r.status]}</button>
+                            <button className="row-btn" onClick={(e) => { e.stopPropagation(); advance(r) }} disabled={saving}>
+                              {r.status === 'open' ? 'Start' : r.status === 'in_progress' ? 'Resolve…' : 'Reopen'}
+                            </button>
                             <button className="row-btn row-btn-danger" onClick={(e) => { e.stopPropagation(); setDeleteConfirm(r.id) }}>Delete</button>
                           </>
                         )}
@@ -174,6 +285,23 @@ export default function Feedback() {
                       </td>
                     </tr>
                   )}
+                  {resolvingId === r.id && (
+                    <tr>
+                      <td colSpan={5} style={{ background: 'var(--surface)' }}>
+                        <div style={{ padding: '12px 8px', display: 'grid', gap: 10, maxWidth: 520 }}>
+                          <FeedbackResolutionForm
+                            report={r}
+                            reports={resolutionReports}
+                            saving={saving}
+                            onCancel={() => { setResolvingId(null); setActionError(null) }}
+                            onSubmit={(input) => saveResolution(r, input)}
+                            appVersion={APP_VERSION}
+                          />
+                          {actionError && <div className="form-error">{actionError}</div>}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                   {expanded === r.id && (
                     <tr>
                       <td colSpan={5} style={{ background: 'var(--surface)' }}>
@@ -181,6 +309,17 @@ export default function Feedback() {
                           <div style={{ fontSize: 12, color: 'var(--text-faint)' }}>
                             {r.page_url} · {r.context?.vehicle_name || 'no vehicle'} · v{r.context?.app_version || '—'}
                           </div>
+                          {r.status === 'resolved' && (
+                            <div>
+                              <strong>{outcomeLabel(r)}</strong>
+                              <div>Resolution note: {r.resolution_note || '—'}</div>
+                              {r.disposition === 'duplicate' && (
+                                <div>Canonical report: {canonicalReport(r)?.id || r.canonical_report_id || '—'} · {canonicalReport(r)?.comment || 'Unknown report'}</div>
+                              )}
+                              <div>Verified build: {r.verified_app_version || '—'}</div>
+                              <div>Verified at: {r.verified_at || '—'}</div>
+                            </div>
+                          )}
                           {r.screenshot_path &&
                             (shotUrls[r.id] ? (
                               <a href={shotUrls[r.id]} target="_blank" rel="noreferrer">
