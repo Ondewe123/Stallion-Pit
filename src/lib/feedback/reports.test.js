@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from 'vitest'
-import { buildContext, statusPatch, withTimeout, newId, updateReport, deleteReport } from './reports'
+import {
+  buildContext, statusPatch, withTimeout, newId, updateReport, deleteReport,
+  resolutionPatch, reopenPatch, updateReportResolution, reopenReport,
+} from './reports'
 
 describe('newId', () => {
   it('returns a v4-shaped uuid', () => {
@@ -87,6 +90,64 @@ describe('statusPatch', () => {
   })
 })
 
+describe('resolutionPatch', () => {
+  const now = () => '2026-08-27T20:00:00.000Z'
+
+  it('builds a verified resolved patch', () => {
+    expect(resolutionPatch({
+      outcome: 'resolved',
+      note: 'Verified dashboard table in production.',
+      appVersion: 'abc1234',
+    }, now)).toEqual({ value: {
+      status: 'resolved',
+      resolved_at: '2026-08-27T20:00:00.000Z',
+      disposition: null,
+      canonical_report_id: null,
+      resolution_note: 'Verified dashboard table in production.',
+      verified_at: '2026-08-27T20:00:00.000Z',
+      verified_app_version: 'abc1234',
+    }, error: null })
+  })
+
+  it('requires evidence for every terminal outcome', () => {
+    expect(resolutionPatch({ outcome: 'resolved', note: ' ' }, now).error)
+      .toBe('Add verification evidence before closing this report.')
+  })
+
+  it('requires a different canonical report for duplicates', () => {
+    expect(resolutionPatch({
+      outcome: 'duplicate', note: 'Same request.', reportId: 'r1', canonicalReportId: 'r1',
+    }, now).error).toBe('Choose a different canonical report.')
+  })
+
+  it('builds a duplicate patch with canonical id', () => {
+    expect(resolutionPatch({
+      outcome: 'duplicate', note: 'Covered by the route alternatives report.',
+      reportId: 'r1', canonicalReportId: 'r2', appVersion: 'abc1234',
+    }, now).value).toMatchObject({
+      status: 'resolved', disposition: 'duplicate', canonical_report_id: 'r2',
+    })
+  })
+
+  it('builds a cannot-reproduce patch without a canonical id', () => {
+    expect(resolutionPatch({
+      outcome: 'cannot_reproduce', note: 'Tested Chrome and Android against build abc1234.',
+    }, now).value).toMatchObject({
+      status: 'resolved', disposition: 'cannot_reproduce', canonical_report_id: null,
+    })
+  })
+})
+
+describe('reopenPatch', () => {
+  it('clears all terminal metadata', () => {
+    expect(reopenPatch()).toEqual({
+      status: 'open', resolved_at: null, disposition: null,
+      canonical_report_id: null, resolution_note: null,
+      verified_at: null, verified_app_version: null,
+    })
+  })
+})
+
 describe('updateReport', () => {
   it('patches comment + type by id', async () => {
     const calls = {}
@@ -135,5 +196,43 @@ describe('deleteReport', () => {
     const r = await deleteReport('r1', null, client)
     expect(seq).toEqual(['delete'])
     expect(r.error).toBeNull()
+  })
+})
+
+describe('resolution updates', () => {
+  const clientWithUpdate = (capture) => ({
+    from: (table) => ({
+      update: (patch) => ({
+        eq: (column, id) => {
+          capture.push({ table, patch, column, id })
+          return Promise.resolve({ error: null })
+        },
+      }),
+    }),
+  })
+
+  it('writes a validated resolution patch by id', async () => {
+    const calls = []
+    const result = await updateReportResolution('r1', {
+      outcome: 'resolved', note: 'Verified.', appVersion: 'abc1234',
+    }, clientWithUpdate(calls), () => '2026-08-27T20:00:00.000Z')
+    expect(result).toEqual({ error: null })
+    expect(calls[0]).toMatchObject({ table: 'feedback_reports', column: 'id', id: 'r1' })
+    expect(calls[0].patch).toMatchObject({ status: 'resolved', resolution_note: 'Verified.' })
+  })
+
+  it('does not call Supabase when validation fails', async () => {
+    const calls = []
+    const result = await updateReportResolution('r1', {
+      outcome: 'resolved', note: '',
+    }, clientWithUpdate(calls))
+    expect(result.error).toBe('Add verification evidence before closing this report.')
+    expect(calls).toEqual([])
+  })
+
+  it('reopens and clears evidence by id', async () => {
+    const calls = []
+    expect(await reopenReport('r1', clientWithUpdate(calls))).toEqual({ error: null })
+    expect(calls[0].patch).toEqual(reopenPatch())
   })
 })

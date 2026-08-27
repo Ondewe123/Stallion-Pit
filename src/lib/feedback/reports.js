@@ -40,6 +40,41 @@ export function statusPatch(status, now = () => new Date().toISOString()) {
   return { status, resolved_at: status === 'resolved' ? now() : null }
 }
 
+export const TERMINAL_OUTCOMES = ['resolved', 'duplicate', 'cannot_reproduce']
+
+export function resolutionPatch({
+  outcome, note, reportId = null, canonicalReportId = null, appVersion = 'dev',
+}, now = () => new Date().toISOString()) {
+  if (!TERMINAL_OUTCOMES.includes(outcome)) return { value: null, error: 'Choose a valid outcome.' }
+  const evidence = String(note || '').trim()
+  if (!evidence) return { value: null, error: 'Add verification evidence before closing this report.' }
+  if (outcome === 'duplicate') {
+    if (!canonicalReportId) return { value: null, error: 'Choose the canonical report.' }
+    if (canonicalReportId === reportId) return { value: null, error: 'Choose a different canonical report.' }
+  }
+  const timestamp = now()
+  return {
+    value: {
+      status: 'resolved',
+      resolved_at: timestamp,
+      disposition: outcome === 'resolved' ? null : outcome,
+      canonical_report_id: outcome === 'duplicate' ? canonicalReportId : null,
+      resolution_note: evidence,
+      verified_at: timestamp,
+      verified_app_version: appVersion || 'dev',
+    },
+    error: null,
+  }
+}
+
+export function reopenPatch() {
+  return {
+    status: 'open', resolved_at: null, disposition: null,
+    canonical_report_id: null, resolution_note: null,
+    verified_at: null, verified_app_version: null,
+  }
+}
+
 // crypto.randomUUID() doesn't exist on older iOS Safari (< 15.4). Fall back to a
 // plain RFC4122-ish v4 id so submit never throws on those devices.
 export function newId() {
@@ -116,6 +151,18 @@ export async function updateReport(id, { comment, type } = {}, client = supabase
   if (comment !== undefined) patch.comment = comment || null
   if (type !== undefined) patch.type = type
   const { error } = await client.from('feedback_reports').update(patch).eq('id', id)
+  return { error: error ? error.message : null }
+}
+
+export async function updateReportResolution(id, input, client = supabase, now) {
+  const result = resolutionPatch({ ...input, reportId: id }, now)
+  if (result.error) return { error: result.error }
+  const { error } = await client.from('feedback_reports').update(result.value).eq('id', id)
+  return { error: error ? error.message : null }
+}
+
+export async function reopenReport(id, client = supabase) {
+  const { error } = await client.from('feedback_reports').update(reopenPatch()).eq('id', id)
   return { error: error ? error.message : null }
 }
 
