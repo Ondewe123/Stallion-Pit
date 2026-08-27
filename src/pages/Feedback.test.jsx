@@ -168,6 +168,32 @@ describe('Feedback resolution workflow', () => {
     expect(reportApi.listReports).toHaveBeenCalledTimes(2)
   })
 
+  it('keeps a reopen error visible after a filter hides an open resolution form', async () => {
+    const resolvedReport = {
+      ...inProgressReport,
+      id: 'r3',
+      status: 'resolved',
+      resolution_note: 'Verified in production.',
+      verified_at: '2026-08-28T00:00:00.000Z',
+      verified_app_version: 'abc1234',
+    }
+    reportApi.listReports.mockImplementation((filter) => Promise.resolve({
+      data: filter === 'resolved' ? [resolvedReport] : [inProgressReport, canonicalReport],
+      error: null,
+    }))
+    reportApi.reopenReport.mockResolvedValue({ error: 'Could not reopen report' })
+    const container = await renderFeedback()
+
+    await click(container, 'Resolve…')
+    expect(container.textContent).toContain('Resolution form for r1')
+
+    await click(container, 'Resolved')
+    await click(container, 'Reopen')
+    await click(container, 'Confirm reopen')
+
+    expect(container.textContent).toContain('Could not reopen report')
+  })
+
   it('shows duplicate resolution evidence and its canonical report in details', async () => {
     reportApi.listReports.mockResolvedValue({ data: [{
       ...inProgressReport,

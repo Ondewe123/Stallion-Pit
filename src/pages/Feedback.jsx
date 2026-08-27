@@ -196,7 +196,10 @@ export default function Feedback() {
 
       <div className="row-actions" style={{ margin: '16px 0', flexWrap: 'wrap' }}>
         {FILTERS.map((f) => (
-          <button key={f.key} className={`row-btn ${filter === f.key ? 'vehicle-tab-active' : ''}`} onClick={() => setFilter(f.key)}>
+          <button key={f.key} className={`row-btn ${filter === f.key ? 'vehicle-tab-active' : ''}`} onClick={() => {
+            setResolvingId(null)
+            setFilter(f.key)
+          }}>
             {f.label}
           </button>
         ))}
