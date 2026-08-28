@@ -317,7 +317,7 @@ export default function Feedback() {
                               <strong>{outcomeLabel(r)}</strong>
                               <div>Resolution note: {r.resolution_note || '—'}</div>
                               {r.disposition === 'duplicate' && (
-                                <div>Canonical report: {canonicalReport(r)?.id || r.canonical_report_id || '—'} · {canonicalReport(r)?.comment || 'Unknown report'}</div>
+                                <div>Canonical report: {(canonicalReport(r)?.id || r.canonical_report_id || '—').slice(0, 8)} · {canonicalReport(r)?.comment || 'Unknown report'}</div>
                               )}
                               <div>Verified build: {r.verified_app_version || '—'}</div>
                               <div>Verified at: {r.verified_at || '—'}</div>

@@ -54,7 +54,7 @@ const inProgressReport = {
 
 const canonicalReport = {
   ...inProgressReport,
-  id: 'r2',
+  id: '12345678-1234-4567-89ab-123456789abc',
   comment: 'Alternative routes and tolls',
   status: 'open',
 }
@@ -199,7 +199,7 @@ describe('Feedback resolution workflow', () => {
       ...inProgressReport,
       status: 'resolved',
       disposition: 'duplicate',
-      canonical_report_id: 'r2',
+      canonical_report_id: '12345678-1234-4567-89ab-123456789abc',
       resolution_note: 'Tracked by the route alternatives work item.',
       verified_at: '2026-08-28T00:00:00.000Z',
       verified_app_version: 'abc1234',
@@ -214,6 +214,8 @@ describe('Feedback resolution workflow', () => {
 
     expect(container.textContent).toContain('Duplicate')
     expect(container.textContent).toContain('Tracked by the route alternatives work item.')
+    expect(container.textContent).toContain('Canonical report: 12345678 · Alternative routes and tolls')
+    expect(container.textContent).not.toContain('Canonical report: 12345678-1234-4567-89ab-123456789abc')
     expect(container.textContent).toContain('Alternative routes and tolls')
     expect(container.textContent).toContain('abc1234')
   })
@@ -223,7 +225,7 @@ describe('Feedback resolution workflow', () => {
       ...inProgressReport,
       status: 'resolved',
       disposition: 'duplicate',
-      canonical_report_id: 'r2',
+      canonical_report_id: '12345678-1234-4567-89ab-123456789abc',
       resolution_note: 'Tracked by the route alternatives work item.',
       verified_at: '2026-08-28T00:00:00.000Z',
       verified_app_version: 'abc1234',

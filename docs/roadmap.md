@@ -48,6 +48,7 @@ Each module reuses the proven pattern in Fleet/FuelLog: per-vehicle Supabase tab
 
 ## Cross-cutting
 
+- **Release 0 feedback audit (2026-08-27):** [ledger](feedback-audits/2026-08-27-release-0.md) records 1 proven duplicate, 7 feature plans, and 12 pending browser-capable re-audits; it does not claim the 12 procedures are complete.
 - **DB schema is not in the repo.** Tables live only in Supabase. Capture each new table as a SQL
   migration file under `supabase/migrations/` so the schema is reproducible.
 - **RLS** — confirm Row-Level Security is enabled on every table (the client uses the public anon key).
