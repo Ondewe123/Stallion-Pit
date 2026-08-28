@@ -48,6 +48,12 @@ Each module reuses the proven pattern in Fleet/FuelLog: per-vehicle Supabase tab
 
 ## Cross-cutting
 
+## Planned improvements
+
+| Priority | Improvement | Scope | Status |
+|---|---|---|---|
+| Now | Feedback Release 0 — audit and backlog cleanup | Migration deployed; evidence recorded for all 20 reports. One exact duplicate reconciled; feature and correctness work remains conservatively open pending browser-capable verification. | Complete — 16 open; 3 in progress; 8 resolved |
+
 - **DB schema is not in the repo.** Tables live only in Supabase. Capture each new table as a SQL
   migration file under `supabase/migrations/` so the schema is reproducible.
 - **RLS** — confirm Row-Level Security is enabled on every table (the client uses the public anon key).
