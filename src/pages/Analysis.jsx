@@ -5,7 +5,7 @@ import {
 } from 'recharts'
 import { useVehicle } from '../contexts/VehicleContext'
 import { supabase } from '../lib/supabase'
-import { num, rolling } from '../lib/calc/consumption'
+import { num, rolling, economyTotals, economyByYear } from '../lib/calc/consumption'
 import { fuelUsedTotals, fuelPeriods } from '../lib/calc/fuelUsage'
 import { useChartTheme } from '../lib/chartTheme'
 
@@ -99,15 +99,15 @@ export default function Analysis() {
 
   const totalVol = f.reduce((s, x) => s + num(x.volume_litres), 0)
   const totalFuelCost = f.reduce((s, x) => s + num(x.total_cost_kes), 0)
-  let volAfter = 0, costAfter = 0
-  for (let i = 1; i < n; i++) { volAfter += num(f[i].volume_litres); costAfter += num(f[i].total_cost_kes) }
+  const lifetimeEconomy = economyTotals([...f].reverse(), n)
 
   const svcCost = raw.svc.reduce((s, x) => s + num(x.total_cost_kes), 0)
   const partsCost = raw.parts.reduce((s, x) => s + num(x.total_cost_kes), 0)
   const upkeep = svcCost + partsCost
 
-  const lifeLkm = distance > 0 && volAfter > 0 ? volAfter / distance * 100 : null
-  const lifeCostKm = distance > 0 ? costAfter / distance : null
+  const lifeLkm = lifetimeEconomy.distance > 0 && lifetimeEconomy.volume > 0
+    ? lifetimeEconomy.volume / lifetimeEconomy.distance * 100 : null
+  const lifeCostKm = lifetimeEconomy.distance > 0 ? lifetimeEconomy.cost / lifetimeEconomy.distance : null
   const avgPpl = totalVol > 0 ? totalFuelCost / totalVol : null
   const latestPpl = num(f[n - 1].derived_price_per_litre || f[n - 1].price_per_litre_kes) || null
   const kmPerMonth = spanMonths > 0 ? distance / spanMonths : null
@@ -117,11 +117,9 @@ export default function Analysis() {
   const avgKmBetween = n > 1 ? distance / (n - 1) : null
   const upkeepPer1000 = distance > 0 ? upkeep / distance * 1000 : null
 
-  const recentWin = f.slice(-11)
-  const recentDist = num(recentWin[recentWin.length - 1].odometer_km) - num(recentWin[0].odometer_km)
-  let recentVol = 0
-  for (let i = 1; i < recentWin.length; i++) recentVol += num(recentWin[i].volume_litres)
-  const recentLkm = recentDist > 0 && recentVol > 0 ? recentVol / recentDist * 100 : null
+  const recentEconomy = economyTotals([...f].reverse(), 11)
+  const recentLkm = recentEconomy.distance > 0 && recentEconomy.volume > 0
+    ? recentEconomy.volume / recentEconomy.distance * 100 : null
 
   // ---- records ----
   const rollAll = rolling(f, 3, (dist, vol) => vol > 0 ? round2(vol / dist * 100) : null)
@@ -136,15 +134,9 @@ export default function Analysis() {
   }
 
   // ---- by year ----
-  const yrs = {}
+  const yrs = economyByYear(f)
   const yr = (y) => (yrs[y] = yrs[y] || { year: y, dist: 0, vol: 0, fuel: 0, up: 0 })
-  for (let i = 0; i < n; i++) {
-    const x = f[i]; const y = x.logged_at?.slice(0, 4); if (!y) continue
-    const b = yr(y)
-    const kmsl = i > 0 ? num(x.odometer_km) - num(f[i - 1].odometer_km) : 0
-    if (kmsl > 0) b.dist += kmsl
-    b.vol += num(x.volume_litres); b.fuel += num(x.total_cost_kes)
-  }
+  Object.values(yrs).forEach(y => { y.up = 0 })
   raw.svc.forEach(s => { const y = s.serviced_at?.slice(0, 4); if (y) yr(y).up += num(s.total_cost_kes) })
   raw.parts.forEach(p => { const y = p.purchased_at?.slice(0, 4); if (y) yr(y).up += num(p.total_cost_kes) })
   const yearRows = Object.values(yrs).sort((a, b) => b.year.localeCompare(a.year))

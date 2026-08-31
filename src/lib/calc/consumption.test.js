@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { num, correctedConsumption, fillRangeKm, rolling, segments, withDerived, GAP_HINT_DAYS } from './consumption'
+import {
+  num, correctedConsumption, economyTotals, economyByYear,
+  fillRangeKm, rolling, segments, withDerived, GAP_HINT_DAYS,
+} from './consumption'
 
 // Helper: build a newest-first (descending odometer) log list.
 const log = (odo, vol, cost) => ({ odometer_km: odo, volume_litres: vol, total_cost_kes: cost, logged_at: '2026-01-01' })
@@ -18,6 +21,13 @@ describe('correctedConsumption', () => {
   it('computes L/100km from cumulative volume over cumulative distance', () => {
     // newest first: 1100km .. 1000km, 10L burned over 100km => 10 L/100km
     const logs = [log(1100, 5, 1000), log(1050, 5, 1000), log(1000, 0, 0)]
+    expect(correctedConsumption(logs, 3)).toBeCloseTo(10, 6)
+  })
+
+  it('treats the oldest fill as the odometer boundary, not fuel consumed in the window', () => {
+    const logs = [log(1200, 10, 2000), log(1100, 10, 2000), log(1000, 50, 10000)]
+    // The two newer fills supplied 20L over 200km. The 50L bought at the
+    // starting odometer belongs to the preceding distance and must not count.
     expect(correctedConsumption(logs, 3)).toBeCloseTo(10, 6)
   })
 
@@ -44,6 +54,53 @@ describe('correctedConsumption', () => {
 
   it('returns null for zero total volume', () => {
     expect(correctedConsumption([log(1100, 0, 0), log(1000, 0, 0)], 2)).toBeNull()
+  })
+})
+
+describe('economyTotals', () => {
+  it('returns boundary-safe distance, volume and cost for newest-first rows', () => {
+    const logs = [
+      { ...log(1200, 10, 2100), logged_at: '2026-03-01' },
+      { ...log(1100, 10, 2000), logged_at: '2026-02-01' },
+      { ...log(1000, 50, 9000), logged_at: '2026-01-01' },
+    ]
+    expect(economyTotals(logs, 3)).toEqual({ distance: 200, volume: 20, cost: 4100 })
+  })
+
+  it('drops excluded fills and the distance crossing each broken chain', () => {
+    const logs = [
+      { ...log(1500, 10, 2100), logged_at: '2026-05-01' },
+      { ...log(1400, 40, 8000), logged_at: '2026-04-01' },
+      { ...log(1300, 99, 9900), logged_at: '2026-03-01', exclude_from_economy: true },
+      { ...log(1200, 5, 1000), logged_at: '2026-02-01' },
+      { ...log(1100, 30, 6000), logged_at: '2026-01-01' },
+    ]
+    expect(economyTotals(logs, 5)).toEqual({ distance: 200, volume: 15, cost: 3100 })
+  })
+})
+
+describe('economyByYear', () => {
+  it('assigns each valid interval to the newer fill year without counting the initial boundary', () => {
+    const asc = [
+      { ...log(1000, 50, 9000), logged_at: '2025-12-20' },
+      { ...log(1100, 10, 2000), logged_at: '2026-01-10' },
+      { ...log(1250, 12, 2400), logged_at: '2026-02-10' },
+    ]
+    expect(economyByYear(asc)).toEqual({
+      2026: { year: '2026', dist: 250, vol: 22, fuel: 4400 },
+    })
+  })
+
+  it('omits intervals touching an excluded fill', () => {
+    const asc = [
+      { ...log(1000, 50, 9000), logged_at: '2026-01-01' },
+      { ...log(1100, 10, 2000), logged_at: '2026-02-01', exclude_from_economy: true },
+      { ...log(1200, 10, 2100), logged_at: '2026-03-01' },
+      { ...log(1300, 8, 1700), logged_at: '2026-04-01' },
+    ]
+    expect(economyByYear(asc)).toEqual({
+      2026: { year: '2026', dist: 100, vol: 8, fuel: 1700 },
+    })
   })
 })
 
@@ -149,8 +206,20 @@ describe('break-awareness', () => {
       L(1150, 99, { exclude_from_economy: true }),
       L(1000, 5), L(900, 5),
     ]
-    // run1: (1300-1200)=100km, 20L ; run2: (1000-900)=100km, 10L => 30L / 200km => 15
-    expect(correctedConsumption(logs, 5)).toBeCloseTo(15, 6)
+    // run1: 10L over (1300-1200)=100km; run2: 5L over
+    // (1000-900)=100km. Each oldest fill is only an odometer boundary.
+    expect(correctedConsumption(logs, 5)).toBeCloseTo(7.5, 6)
+  })
+
+  it('uses the oldest fill in each run only as that run\'s odometer boundary', () => {
+    const logs = [
+      L(1500, 10), L(1400, 40),
+      L(1300, 99, { exclude_from_economy: true }),
+      L(1200, 5), L(1100, 30),
+    ]
+    // Newer fuel only: 10L / 100km plus 5L / 100km => 15L / 200km.
+    // The 40L and 30L at each run's starting boundary belong before the window.
+    expect(correctedConsumption(logs, 5)).toBeCloseTo(7.5, 6)
   })
 
   it('rolling skips windows straddling an excluded fill', () => {

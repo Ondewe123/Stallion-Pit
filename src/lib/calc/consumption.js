@@ -71,20 +71,47 @@ export function withDerived(logsAsc) {
 // the window and divides by the total distance, not per-fill. Break-aware: splits the
 // window into runs at excluded fills and sums each run's volume over its own distance,
 // so an excluded fill's volume AND the distance across it are never counted.
-export function correctedConsumption(logs, windowSize) {
-  if (!logs || logs.length < 2) return null
+export function economyTotals(logs, windowSize) {
+  if (!logs || logs.length < 2) return { distance: 0, volume: 0, cost: 0 }
   const window = logs.slice(0, windowSize)
-  let totalVolume = 0, totalKm = 0
+  let volume = 0, distance = 0, cost = 0
   for (const run of segments(window)) {          // runs preserve newest-first order
     if (run.length < 2) continue
     const km = num(run[0].odometer_km) - num(run[run.length - 1].odometer_km)
     if (km <= 0) continue
-    let vol = 0
-    for (const l of run) vol += num(l.volume_litres)
-    totalVolume += vol; totalKm += km
+    // In newest-first order, the oldest row supplies only the starting
+    // odometer. Its fuel was bought for travel before this window/run.
+    for (const l of run.slice(0, -1)) {
+      volume += num(l.volume_litres)
+      cost += num(l.total_cost_kes)
+    }
+    distance += km
   }
-  if (totalKm <= 0 || totalVolume <= 0) return null
-  return (totalVolume / totalKm) * 100
+  return { distance, volume, cost }
+}
+
+export function correctedConsumption(logs, windowSize) {
+  const totals = economyTotals(logs, windowSize)
+  if (totals.distance <= 0 || totals.volume <= 0) return null
+  return (totals.volume / totals.distance) * 100
+}
+
+// Aggregate valid oldest-first fill intervals by the newer fill's calendar year.
+// An excluded fill breaks both adjacent intervals, matching rolling() and economyTotals().
+export function economyByYear(fuelAsc) {
+  const years = {}
+  for (let i = 1; i < (fuelAsc || []).length; i++) {
+    const prev = fuelAsc[i - 1], current = fuelAsc[i]
+    if (prev.exclude_from_economy || current.exclude_from_economy) continue
+    const year = current.logged_at?.slice(0, 4)
+    const distance = num(current.odometer_km) - num(prev.odometer_km)
+    if (!year || distance <= 0) continue
+    const bucket = years[year] ||= { year, dist: 0, vol: 0, fuel: 0 }
+    bucket.dist += distance
+    bucket.vol += num(current.volume_litres)
+    bucket.fuel += num(current.total_cost_kes)
+  }
+  return years
 }
 
 // Estimated distance a given volume of fuel will cover at a known economy.
