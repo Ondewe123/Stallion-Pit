@@ -11,6 +11,9 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+.env.*
+!.env.example
 
 # Editor directories and files
 .vscode/*
@@ -31,3 +34,15 @@ backups/
 
 # Local implementation worktrees
 .worktrees/
+
+.vercel
+
+# Local AI-assistant state
+.claude/
+.superpowers/brainstorm/
+
+# Local/raw data preparation files (application data lives in Supabase)
+Data/
+IPC/*-combined-*.csv
+IPC/*-missing-*.csv
+IPC/*-missing-*.json

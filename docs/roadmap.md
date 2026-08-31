@@ -34,6 +34,14 @@ Stack: React 19 · Vite 8 · React Router 7 · Supabase (auth + Postgres) · Rec
 | 07 | Dashboard            | Fleet overview & alerts               | read-only              | 03 · 05 · 09 |
 | 08 | Analysis             | Deep analytics & trends               | read-only (Recharts)   | Fuel · 03 · 04 |
 
+## Planned improvements
+
+| Priority | Improvement | Scope | Status |
+|----------|-------------|-------|--------|
+| Next | Polo VIN profile and technical documents | Record the verified Polo VIN, BBY engine and GJG gearbox; retain identification photographs; add private document categories and Fleet access for official workshop information. | Approved — design and implementation plan in progress |
+| Next | VIN-specific workshop-manual library | Store official, vehicle-applicable maintenance, repair, wiring and technical documents with their source and applicability details. | Approved — source documents still to be obtained from Volkswagen erWin or an authorised VAG workshop |
+| Later | IPC usability pass | Global part search that opens the matching diagram, filter reset, copy confirmation, more focused snag assignment, responsive part view and diagram zoom. | Planned |
+
 ## Recommended build order (dependency-aware)
 
 1. **03 — Service Log** — foundational service history.
