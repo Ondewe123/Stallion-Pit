@@ -38,7 +38,9 @@ backups/
 .vercel
 
 # Local AI-assistant state
-.claude/
+.claude/*
+!.claude/skills/
+!.claude/skills/**
 .superpowers/brainstorm/
 
 # Local/raw data preparation files (application data lives in Supabase)
@@ -46,3 +48,6 @@ Data/
 IPC/*-combined-*.csv
 IPC/*-missing-*.csv
 IPC/*-missing-*.json
+
+# Generated UI review captures
+artifacts/ui/
