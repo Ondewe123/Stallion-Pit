@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "backup": "node scripts/backup.mjs"
+    "backup": "node scripts/backup.mjs",
+    "ui:capture": "node scripts/ui-capture.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
