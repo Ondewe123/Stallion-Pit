@@ -60,3 +60,19 @@ Review at 1440×900 first, then 1024×768 and 390×844 where supported. Record w
 
 ## Completion gate
 Behavior preserved; build/tests pass; no clipping/overflow; dense desktop layout; exceptions easy to find; responsive behavior checked or explicitly scoped out; rendered result visually reviewed.
+
+
+## Stallion capture command
+For repeatable rendered review, use:
+
+`npm run ui:capture`
+
+The harness captures 1440×900, 1024×768, and 390×844 plus JSON viewport metrics into `artifacts/ui/`.
+
+Authentication must come from either:
+- `UI_STORAGE_STATE`, or
+- `UI_AUDIT_EMAIL` + `UI_AUDIT_PASSWORD`.
+
+If Playwright is not available in the working environment, install it without changing the lockfile using `npm install --no-save playwright`, then install Chromium with `npx playwright install chromium`.
+
+Do not commit generated screenshots or credentials.
