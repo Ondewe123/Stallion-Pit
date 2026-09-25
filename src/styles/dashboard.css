@@ -1,0 +1,452 @@
+/* Stallion Pit dashboard density experiment.
+   Scoped to .dashboard-page so existing modules remain unchanged. */
+
+.dashboard-page {
+  padding: 20px 24px 32px;
+  max-width: 1600px;
+}
+
+.dashboard-titlebar {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dashboard-titlebar h2 {
+  font-family: var(--font-display);
+  font-size: 27px;
+  letter-spacing: 2px;
+  color: var(--text-strong);
+  line-height: 1;
+}
+
+.dashboard-titlebar .page-sub {
+  margin-top: 3px;
+  letter-spacing: 1.5px;
+}
+
+.dashboard-fleet-summary {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.dashboard-fleet-stat {
+  min-width: 98px;
+  padding: 7px 12px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 10px;
+  border: 0;
+  border-right: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+.dashboard-fleet-stat:last-child { border-right: 0; }
+
+.dashboard-fleet-stat span,
+.dashboard-vehicle-status span,
+.dashboard-metric > span {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1.3px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.dashboard-fleet-stat strong {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-strong);
+}
+
+.dashboard-fleet-action:hover {
+  background: var(--surface-2);
+}
+
+.dashboard-danger { color: var(--danger-strong) !important; }
+.dashboard-warning { color: var(--warning-strong) !important; }
+.dashboard-faint { color: var(--text-faint); }
+
+.dashboard-vehicle-bar {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.8fr) minmax(520px, 2.2fr);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  margin-bottom: 12px;
+}
+
+.dashboard-vehicle-identity {
+  padding: 11px 14px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.dashboard-vehicle-identity h3 {
+  font-family: var(--font-display);
+  font-size: 23px;
+  letter-spacing: 1.8px;
+  line-height: 1;
+  color: var(--text-strong);
+}
+
+.dashboard-vehicle-identity span {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.dashboard-vehicle-status {
+  display: grid;
+  grid-template-columns: 0.85fr 0.85fr 1.3fr;
+}
+
+.dashboard-vehicle-status > div,
+.dashboard-vehicle-status > button {
+  min-width: 0;
+  padding: 9px 12px;
+  border: 0;
+  border-right: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  text-align: left;
+}
+
+.dashboard-vehicle-status > :last-child { border-right: 0; }
+.dashboard-vehicle-status > button:hover { background: var(--surface-2); }
+
+.dashboard-vehicle-status strong {
+  margin-top: 2px;
+  max-width: 100%;
+  color: var(--text-strong);
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.dashboard-vehicle-status strong small,
+.dashboard-metric strong small {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.dashboard-vehicle-status > div > small,
+.dashboard-vehicle-status > button > small,
+.dashboard-metric > small {
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-faint);
+}
+
+.dashboard-next-due {
+  font-size: 13px !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-section {
+  margin-top: 12px;
+}
+
+.dashboard-priority-section {
+  margin-top: 0;
+  border-left: 2px solid var(--warning);
+}
+
+.dashboard-section-heading {
+  min-height: 32px;
+  padding: 5px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  background: var(--surface-2);
+}
+
+.dashboard-section-heading > div {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.dashboard-section-heading h3 {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-strong);
+  white-space: nowrap;
+}
+
+.dashboard-section-heading span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-faint);
+}
+
+.dashboard-table-shell {
+  border: 1px solid var(--border);
+}
+
+.dashboard-table th {
+  padding: 7px 10px;
+  font-size: 8px;
+  letter-spacing: 1.4px;
+}
+
+.dashboard-table td {
+  padding: 7px 10px;
+  line-height: 1.35;
+}
+
+.dashboard-table tbody tr { cursor: pointer; }
+
+.dashboard-alert-table td:first-child {
+  width: 98px;
+}
+
+.dashboard-alert-table td:last-child {
+  width: 210px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.dashboard-metric-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.dashboard-metric {
+  min-width: 0;
+  padding: 8px 11px;
+  border: 0;
+  border-right: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.dashboard-metric:last-child { border-right: 0; }
+button.dashboard-metric:hover { background: var(--surface-2); }
+
+.dashboard-metric strong {
+  margin-top: 2px;
+  max-width: 100%;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-strong);
+  line-height: 1.3;
+}
+
+.dashboard-secondary-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.8fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.dashboard-spend-list {
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.dashboard-spend-row {
+  min-height: 34px;
+  display: grid;
+  grid-template-columns: minmax(68px, 0.6fr) minmax(110px, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dashboard-spend-row:last-child {
+  border-bottom: 0;
+  background: var(--surface-2);
+}
+
+.dashboard-spend-row span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.dashboard-spend-row strong {
+  color: var(--text-strong);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.dashboard-spend-row small {
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.dashboard-date-cell {
+  width: 96px;
+  font-size: 10px !important;
+}
+
+.dashboard-type-cell {
+  width: 86px;
+}
+
+@media (max-width: 1050px) {
+  .dashboard-page { padding: 18px 18px 28px; }
+
+  .dashboard-titlebar {
+    align-items: flex-start;
+  }
+
+  .dashboard-vehicle-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-vehicle-identity {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dashboard-secondary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-metric-strip {
+    grid-template-columns: repeat(2, minmax(150px, 1fr));
+  }
+
+  .dashboard-metric:nth-child(2) {
+    border-right: 0;
+  }
+
+  .dashboard-metric:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-page {
+    padding: 12px 10px 22px;
+  }
+
+  .dashboard-titlebar {
+    min-height: 0;
+    display: block;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+  }
+
+  .dashboard-titlebar h2 {
+    font-size: 23px;
+  }
+
+  .dashboard-fleet-summary {
+    margin-top: 8px;
+    width: 100%;
+  }
+
+  .dashboard-fleet-stat {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 8px;
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .dashboard-fleet-stat strong {
+    font-size: 14px;
+  }
+
+  .dashboard-vehicle-status {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .dashboard-vehicle-status > :nth-child(2) {
+    border-right: 0;
+  }
+
+  .dashboard-vehicle-status > :nth-child(3) {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--border);
+  }
+
+  .dashboard-section-heading > div {
+    display: block;
+  }
+
+  .dashboard-section-heading span {
+    display: block;
+    margin-top: 1px;
+  }
+
+  .dashboard-metric-strip {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .dashboard-alert-table td:last-child {
+    width: auto;
+    white-space: normal;
+  }
+
+  .dashboard-spend-row {
+    grid-template-columns: 64px minmax(100px, 1fr) auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-metric-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-metric {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dashboard-metric:last-child {
+    border-bottom: 0;
+  }
+
+  .dashboard-fleet-stat span {
+    letter-spacing: 0.7px;
+  }
+
+  .dashboard-faint {
+    display: block;
+    margin-top: 2px;
+  }
+}
