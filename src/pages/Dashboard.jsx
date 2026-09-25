@@ -6,6 +6,7 @@ import { evaluate as evalMaint } from '../lib/calc/maintenance'
 import { correctedConsumption as consumption, fillRangeKm } from '../lib/calc/consumption'
 import { kmThisMonth, avgKmPerMonth } from '../lib/calc/distance'
 import { fuelUsedByVehicle, fuelPeriods } from '../lib/calc/fuelUsage'
+import '../styles/dashboard.css'
 
 const kes = (n) => Number(n || 0).toLocaleString()
 const ACTIVE_SNAG = ['Open', 'In Progress']
