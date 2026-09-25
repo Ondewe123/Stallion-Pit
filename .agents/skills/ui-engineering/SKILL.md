@@ -116,3 +116,19 @@ A material UI change is complete only when:
 - alerts/exceptions are easy to find
 - responsive behavior is inspected or explicitly scoped out
 - rendered output has been visually reviewed
+
+
+## Stallion capture command
+For repeatable rendered review, use:
+
+`npm run ui:capture`
+
+The harness captures 1440×900, 1024×768, and 390×844 plus JSON viewport metrics into `artifacts/ui/`.
+
+Authentication must come from either:
+- `UI_STORAGE_STATE`, or
+- `UI_AUDIT_EMAIL` + `UI_AUDIT_PASSWORD`.
+
+If Playwright is not available in the working environment, install it without changing the lockfile using `npm install --no-save playwright`, then install Chromium with `npx playwright install chromium`.
+
+Do not commit generated screenshots or credentials.
